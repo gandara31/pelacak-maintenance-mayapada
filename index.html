@@ -121,13 +121,8 @@
   .seqedit{background:none; border:none; color:var(--navy); font-weight:700; font-size:12.5px; padding:0 2px; white-space:nowrap}
   .hist .hseq2{font-weight:800; color:var(--navy); font-size:13.5px}
   .hist .hnext{color:var(--muted); font-size:12.5px; margin-top:1px}
-  .toolbar{display:flex; gap:9px; margin-bottom:12px}
-  .toolbar input{flex:1; padding:11px 12px; border:1.5px solid var(--line); border-radius:10px; background:#fff}
-  .toolbar select{padding:11px 8px; border:1.5px solid var(--line); border-radius:10px; background:#fff}
-  .toolbar input.active, .toolbar select.active{border-color:var(--navy); background:#eef4fb; font-weight:700}
-  @media (min-width:861px){ .toolbar{max-width:520px; margin-left:auto} }
   /* ---------- kelompok tipe mesin berdampingan ---------- */
-  .typecols{display:grid; grid-template-columns:1fr; gap:18px; align-items:start}
+  .typecols{display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:start}
   .typehead{display:flex; align-items:baseline; gap:8px; margin:2px 0 10px; padding-bottom:8px; border-bottom:2px solid var(--navy)}
   .typehead h2{margin:0; font-size:17px; color:var(--navy)}
   .typehead .count{background:var(--navy); color:#fff; font-size:12px; font-weight:700; border-radius:999px; padding:2px 9px}
@@ -146,7 +141,7 @@
   .subcols.single{grid-template-columns:1fr}
   .filterbar{display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:#eef4fb; border:1px solid #cfe0f2; color:var(--navy); border-radius:10px; padding:8px 10px; margin:0 0 12px; font-size:13.5px}
   .filterbar button{border:1px solid var(--navy); background:#fff; color:var(--navy); border-radius:999px; padding:4px 10px; font-size:12.5px; font-weight:700; cursor:pointer}
-  @media (min-width:861px){ .typecols{grid-template-columns:1fr 1fr} }
+  @media (min-width:861px){ .typecols{gap:18px} }
   /* ---------- Sudah/Belum berdampingan di dalam tiap kelompok tipe ---------- */
   .subcols{display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:start}
   .subcols .colhead{flex-wrap:wrap; gap:4px 8px}
@@ -259,6 +254,7 @@
     <button type="button" class="menuitem active" data-h="Mayapada Hospital Bogor"><span class="dot"></span>RS Mayapada</button>
     <button type="button" class="menuitem" data-h="RS PMI"><span class="dot"></span>RS PMI</button>
     <button type="button" class="menuitem" data-h="RSUD Leuwiliang"><span class="dot"></span>RSUD Leuwiliang</button>
+    <button type="button" class="menuitem" id="addMenuBtn"><span class="dot"></span>Tambah Mesin</button>
     <div class="side-sep"></div>
     <button type="button" class="menuitem" id="logoutMenuBtn"><span class="dot"></span>Logout</button>
     <div class="foot">Pencatat maintenance mesin hemodialisa</div>
@@ -280,15 +276,6 @@
     </div>
   </div>
   <main id="dashMain">
-    <div class="toolbar">
-      <input id="searchInput" type="text" placeholder="Cari nomor seri...">
-      <select id="modelFilter">
-        <option value="">Semua model</option>
-        <option value="JOYHEAL">JOYHEAL</option>
-        <option value="SWS-6000A">SWS-6000A</option>
-      </select>
-    </div>
-
     <div class="summary">
       <div class="box"><b id="sumTotal">0</b><span>Mesin terpantau</span></div>
       <div class="box due"><b id="sumDue">0</b><span>Waktunya maintenance</span></div>
@@ -336,10 +323,13 @@
 
     <div id="statusFilterBar" class="filterbar hidden">Menampilkan: <b id="statusFilterLabel"></b><button type="button" id="clearStatusFilter">Tampilkan semua ✕</button></div>
     <div id="machineList"></div>
+  </main>
 
+  <!-- ===== TAMBAH MESIN (tampilan sendiri lewat menu) ===== -->
+  <main id="addMain" class="hidden">
     <section class="panel">
       <h2>Tambah Mesin Baru</h2>
-      <p class="hint">Kalau ada mesin yang belum terdaftar di daftar di atas.</p>
+      <p class="hint">Kalau ada mesin yang belum terdaftar di daftar mesin.</p>
       <label for="addSerial">Nomor Seri</label>
       <input id="addSerial" type="text" placeholder="Nomor seri mesin" style="text-transform:uppercase">
       <label for="addHospital">Rumah Sakit</label>
@@ -388,8 +378,9 @@ let openHistory = new Set(); // kartu yang riwayatnya sedang dibuka
 const H_MAYAPADA = "Mayapada Hospital Bogor";
 let activeHospital = ["Mayapada Hospital Bogor", "RS PMI", "RSUD Leuwiliang"].includes(localStorage.getItem("pelacak_hospital")) ? localStorage.getItem("pelacak_hospital") : H_MAYAPADA;
 let totals = {"Mayapada Hospital Bogor": 11, "RS PMI": 49, "RSUD Leuwiliang": 28}; // total mesin per RS, bisa diubah dari halaman Ronde
-let view = "home";       // tampilan aktif: "home" (beranda bergambar) / "dash" (tampilan normal)
+let view = "home";       // tampilan aktif: "home" (beranda bergambar) / "dash" (tampilan normal) / "add" (tambah mesin)
 let statusFilter = null; // filter status daftar: null (semua) | "due" (hanya Belum) | "ok" (hanya Sudah) — diubah lewat klik judul kolom
+let modelFilterVal = ""; // filter model daftar: "" (semua) | "JOYHEAL" | "SWS-6000A" — diatur lewat ketuk gambar di Beranda (toolbar pencarian sudah dihapus)
 function shortH(h){ return h === H_MAYAPADA ? "Mayapada" : h; }
 function inHospital(m){ return !activeHospital || (m.hospital || H_MAYAPADA) === activeHospital; }
 function syncHospitalTabs(){
@@ -595,17 +586,16 @@ function renderRecog(){
       ${selectedMachine.note ? `<div>Catatan: ${esc(selectedMachine.note)}</div>` : ""}
     </div>`;
   } else if(q.length >= 3){
-    box.innerHTML = `<div class="warnbox">Nomor seri ini belum terdaftar. Periksa lagi ketikannya, atau daftarkan lewat formulir <b>Tambah Mesin Baru</b> di bawah.</div>`;
+    box.innerHTML = `<div class="warnbox">Nomor seri ini belum terdaftar. Periksa lagi ketikannya, atau daftarkan lewat menu <b>Tambah Mesin</b>.</div>`;
   } else {
     box.innerHTML = "";
   }
 }
 
 function sortedMachines(){
-  const q = $("searchInput").value.trim().toUpperCase();
-  const f = $("modelFilter").value;
+  const f = modelFilterVal;
   let list = machines.filter(m =>
-    inHospital(m) && (!q || m.serial.toUpperCase().includes(q)) && (!f || m.model === f));
+    inHospital(m) && (!f || m.model === f));
   const rank = (m) => { const s = machineStatus(m).state; return s === "due" ? 0 : s === "new" ? 1 : 2; };
   const seqOf = (m) => { const l = lastLog(m.id); return l && l.seq != null ? l.seq : Infinity; };
   list.sort((a, b) => {
@@ -649,12 +639,6 @@ function machineCard(m){
     </div>`;
 }
 
-/* Penanda filter yang sedang aktif di toolbar (pencarian / model). */
-function updateFilterMarks(){
-  $("modelFilter").classList.toggle("active", !!$("modelFilter").value);
-  $("searchInput").classList.toggle("active", !!$("searchInput").value.trim());
-}
-
 /* Bar penanda filter status di atas daftar (hanya tampil saat filter menyala). */
 function updateStatusFilterBar(){
   const bar = $("statusFilterBar");
@@ -666,8 +650,7 @@ function renderList(){
   const list = sortedMachines();
   const wrap = $("machineList");
   updateStatusFilterBar();
-  updateFilterMarks();
-  if(!list.length){ wrap.innerHTML = `<div class="panel empty">Tidak ada mesin yang cocok dengan pencarian.</div>`; return; }
+  if(!list.length){ wrap.innerHTML = `<div class="panel empty">Tidak ada mesin di sini.</div>`; return; }
   /* Dua kelompok tipe berdampingan (SWS 6000A | Joyheal, dikelompokkan dari
      field model di data); di dalam tiap kelompok, Belum dan Sudah tampil
      berdampingan (dua kolom) dengan pemisahan otomatis Sudah/Belum dari
@@ -704,7 +687,7 @@ function renderList(){
   const inner = `${typeSection("SWS 6000A", sws)}${typeSection("Joyheal", joy)}${typeSection("Model Lain", other)}`;
   wrap.innerHTML = inner.trim()
     ? `<div class="typecols">${inner}</div>`
-    : `<div class="panel empty">${statusFilter === "due" ? "Tidak ada mesin yang belum di-maintenance di sini." : statusFilter === "ok" ? "Tidak ada mesin yang sudah di-maintenance di sini." : "Tidak ada mesin yang cocok dengan pencarian."}</div>`;
+    : `<div class="panel empty">${statusFilter === "due" ? "Tidak ada mesin yang belum di-maintenance di sini." : statusFilter === "ok" ? "Tidak ada mesin yang sudah di-maintenance di sini." : "Tidak ada mesin di sini."}</div>`;
 
   /* Klik judul kolom = filter status (klik lagi judul yang aktif = kembali ke kedua kolom). */
   wrap.querySelectorAll("[data-status]").forEach(b => b.addEventListener("click", () => {
@@ -796,6 +779,10 @@ function renderAll(){
     $("hdrHospital").textContent = "Beranda";
     document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
     $("homeMenuBtn").classList.add("active");
+  } else if(view === "add"){
+    $("hdrHospital").textContent = "Tambah Mesin";
+    document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
+    $("addMenuBtn").classList.add("active");
   }
 }
 
@@ -804,10 +791,15 @@ function showView(v){
   view = v;
   $("homeView").classList.toggle("hidden", v !== "home");
   $("dashMain").classList.toggle("hidden", v !== "dash");
+  $("addMain").classList.toggle("hidden", v !== "add");
   if(v === "home"){
     $("hdrHospital").textContent = "Beranda";
     document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
     $("homeMenuBtn").classList.add("active");
+  } else if(v === "add"){
+    $("hdrHospital").textContent = "Tambah Mesin";
+    document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
+    $("addMenuBtn").classList.add("active");
   } else {
     syncHospitalTabs();
   }
@@ -815,8 +807,7 @@ function showView(v){
 }
 function goDash(opts = {}){
   if(opts.hospital){ activeHospital = opts.hospital; localStorage.setItem("pelacak_hospital", activeHospital); }
-  $("modelFilter").value = opts.model || "";
-  $("searchInput").value = "";
+  modelFilterVal = opts.model || "";
   showView("dash");
   renderAll();
   window.scrollTo(0, 0);
@@ -834,8 +825,6 @@ $("celebrate").addEventListener("click", () => $("celebrate").classList.remove("
 
 /* ---------------- aksi ---------------- */
 $("snInput").addEventListener("input", renderSuggestions);
-$("searchInput").addEventListener("input", renderList);
-$("modelFilter").addEventListener("change", renderList);
 $("clearStatusFilter").addEventListener("click", () => { statusFilter = null; renderList(); });
 function openSidebar(){ $("sidebar").classList.add("open"); $("scrim").classList.add("show"); }
 function closeSidebar(){ $("sidebar").classList.remove("open"); $("scrim").classList.remove("show"); }
@@ -852,6 +841,7 @@ document.querySelectorAll("#sidebar .menuitem[data-h]").forEach(b => b.addEventL
 $("logoutMenuBtn").addEventListener("click", () => { closeSidebar(); doLogout(); });
 /* ---------- tampilan awal (beranda bergambar) ---------- */
 $("homeMenuBtn").addEventListener("click", () => { showView("home"); renderAll(); closeSidebar(); });
+$("addMenuBtn").addEventListener("click", () => { showView("add"); renderAll(); closeSidebar(); });
 $("homeSws").addEventListener("click", () => goDash({model: "SWS-6000A"}));
 $("homeJoy").addEventListener("click", () => goDash({model: "JOYHEAL"}));
 document.querySelectorAll("#techChips .techchip").forEach(b => b.addEventListener("click", () => {
@@ -940,6 +930,7 @@ $("addBtn").addEventListener("click", async () => {
     machines.sort((a, b) => a.serial < b.serial ? -1 : 1);
     $("addSerial").value = ""; $("addYear").value = ""; $("addNote").value = "";
     activeHospital = hospital; localStorage.setItem("pelacak_hospital", activeHospital);
+    showView("dash");
     renderAll(); toast("Mesin " + serial + " ditambahkan");
   }catch(e){
     toast(e.message.includes("duplicate") || e.message.includes("unique") ? "Nomor seri itu sudah terdaftar" : "Gagal menambah: " + e.message);
