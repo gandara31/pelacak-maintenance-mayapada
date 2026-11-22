@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pelacak Maintenance Mayapada</title>
-<meta name="description" content="Pencatat maintenance mesin hemodialisa — Mayapada Hospital Bogor dan RS PMI">
+<meta name="description" content="Pencatat maintenance mesin hemodialisa — Mayapada Hospital Bogor, RS PMI, dan RSUD Leuwiliang">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0b2545">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -235,6 +235,7 @@
     <div class="menulabel">Rumah Sakit</div>
     <button type="button" class="menuitem active" data-h="Mayapada Hospital Bogor"><span class="dot"></span>RS Mayapada</button>
     <button type="button" class="menuitem" data-h="RS PMI"><span class="dot"></span>RS PMI</button>
+    <button type="button" class="menuitem" data-h="RSUD Leuwiliang"><span class="dot"></span>RSUD Leuwiliang</button>
     <div class="sidebottom">
       <div class="side-sep"></div>
       <button type="button" class="menuitem" id="logoutMenuBtn"><span class="dot"></span>Logout</button>
@@ -299,6 +300,7 @@
       <div class="techchips" id="techChips">
         <button type="button" class="techchip" data-tech="Dena">Dena</button>
         <button type="button" class="techchip" data-tech="Mariyanes">Mariyanes</button>
+        <button type="button" class="techchip" data-tech="Gilang">Gilang</button>
       </div>
       <button class="btnrec" id="recordBtn" type="button" disabled>Sudah Maintenance — Catat</button>
     </section>
@@ -324,6 +326,7 @@
       <select id="addHospital">
         <option value="Mayapada Hospital Bogor">Mayapada Hospital Bogor</option>
         <option value="RS PMI">RS PMI</option>
+        <option value="RSUD Leuwiliang">RSUD Leuwiliang</option>
       </select>
       <div class="row2">
         <div>
@@ -363,11 +366,11 @@ let selectedTech = null;     // Dena / Mariyanes — wajib dipilih sebelum menca
 function updateRecordBtn(){ $("recordBtn").disabled = !selectedMachine || !selectedTech; }
 let openHistory = new Set(); // kartu yang riwayatnya sedang dibuka
 const H_MAYAPADA = "Mayapada Hospital Bogor";
-let activeHospital = localStorage.getItem("pelacak_hospital") === "RS PMI" ? "RS PMI" : H_MAYAPADA;
-let totals = {"Mayapada Hospital Bogor": 11, "RS PMI": 49}; // total mesin per RS, bisa diubah dari halaman Ronde
+let activeHospital = ["Mayapada Hospital Bogor", "RS PMI", "RSUD Leuwiliang"].includes(localStorage.getItem("pelacak_hospital")) ? localStorage.getItem("pelacak_hospital") : H_MAYAPADA;
+let totals = {"Mayapada Hospital Bogor": 11, "RS PMI": 49, "RSUD Leuwiliang": 28}; // total mesin per RS, bisa diubah dari halaman Ronde
 let view = "home";       // tampilan aktif: "home" (beranda bergambar) / "dash" (tampilan normal)
 let statusFilter = null; // null = semua mesin; "ok" = hanya yang sudah di-maintenance (45 hari)
-function shortH(h){ return h === "RS PMI" ? "RS PMI" : "Mayapada"; }
+function shortH(h){ return h === H_MAYAPADA ? "Mayapada" : h; }
 function inHospital(m){ return !activeHospital || (m.hospital || H_MAYAPADA) === activeHospital; }
 function syncHospitalTabs(){
   document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.toggle("active", b.dataset.h === activeHospital));
@@ -847,7 +850,7 @@ function clearTech(){
 
 $("recordBtn").addEventListener("click", async () => {
   if(!selectedMachine) return;
-  if(!selectedTech){ toast("Pilih dulu siapa yang mengerjakan: Dena atau Mariyanes"); return; }
+  if(!selectedTech){ toast("Pilih dulu siapa yang mengerjakan: Dena, Mariyanes, atau Gilang"); return; }
   const date = $("dateInput").value || todayJakarta();
   const workNote = $("workInput").value.trim();
   /* Tidak ada kolom teknisi di tabel maintenance_logs (skema tidak boleh
