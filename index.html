@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pelacak Maintenance Mayapada</title>
+<meta name="description" content="Pencatat maintenance mesin hemodialisa — Mayapada Hospital Bogor dan RS PMI">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b2545">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root{
+    --navy:#0b2545; --navy2:#123a6b; --bg:#eef1f5; --card:#ffffff;
+    --ink:#1c2733; --muted:#66788c; --line:#d9e0e8;
+    --green:#1d9e57; --greenbg:#e5f6ec; --amber:#b97a0c; --amberbg:#fdf1dc;
+    --red:#c0392b; --orange:#f39c2c;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  body{margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink)}
+  button{font:inherit; cursor:pointer}
+  input,select,textarea{font:inherit}
+  .hidden{display:none !important}
+
+  /* ---------- layar masuk ---------- */
+  .authwrap{min-height:100dvh; display:flex; align-items:center; justify-content:center; padding:20px}
+  .authcard{background:var(--card); width:100%; max-width:380px; border-radius:18px; padding:28px 24px; box-shadow:0 10px 34px rgba(11,37,69,.16)}
+  .authlogo{width:74px; height:74px; border-radius:18px; display:block; margin:0 auto 12px}
+  .authcard h1{font-size:20px; text-align:center; margin:0 0 4px; color:var(--navy)}
+  .authcard p.sub{text-align:center; color:var(--muted); margin:0 0 20px; font-size:14px}
+  .authcard label{display:block; font-size:13px; font-weight:600; margin:14px 0 6px; color:var(--navy)}
+  .authcard input{width:100%; padding:12px 13px; border:1.5px solid var(--line); border-radius:10px; background:#fbfcfe}
+  .authcard input:focus{outline:none; border-color:var(--navy2)}
+  .btnmain{width:100%; margin-top:20px; padding:13px; border:none; border-radius:10px; background:var(--navy); color:#fff; font-weight:700; font-size:15px}
+  .btnmain:active{background:var(--navy2)}
+  .btnmain:disabled{opacity:.55}
+  .linkbtn{display:block; margin:14px auto 0; background:none; border:none; color:var(--navy2); font-size:14px; text-decoration:underline}
+  .msg{margin-top:14px; font-size:14px; padding:10px 12px; border-radius:9px; display:none}
+  .msg.err{display:block; background:#fdecea; color:var(--red)}
+  .msg.ok{display:block; background:var(--greenbg); color:#146c3a}
+
+  /* ---------- aplikasi ---------- */
+  header.top{position:sticky; top:0; z-index:20; background:var(--navy); color:#fff; padding:12px 16px; display:flex; align-items:center; gap:11px; box-shadow:0 2px 10px rgba(11,37,69,.3)}
+  header.top img{width:36px; height:36px; border-radius:9px}
+  header.top .t{flex:1; min-width:0}
+  header.top .t b{display:block; font-size:16px; line-height:1.15}
+  header.top .t span{font-size:12px; opacity:.75}
+  header.top button{background:rgba(255,255,255,.14); color:#fff; border:1px solid rgba(255,255,255,.35); padding:7px 12px; border-radius:8px; font-size:13px}
+  main{max-width:640px; margin:0 auto; padding:16px 14px 60px}
+  .panel{background:var(--card); border-radius:14px; padding:16px; box-shadow:0 2px 10px rgba(11,37,69,.07); margin-bottom:14px}
+  .panel h2{margin:0 0 4px; font-size:16px; color:var(--navy)}
+  .panel p.hint{margin:0 0 12px; font-size:13px; color:var(--muted)}
+  .panel label{display:block; font-size:13px; font-weight:600; margin:12px 0 6px; color:var(--navy)}
+  .panel input,.panel select,.panel textarea{width:100%; padding:11px 12px; border:1.5px solid var(--line); border-radius:10px; background:#fbfcfe}
+  .panel input:focus,.panel select:focus,.panel textarea:focus{outline:none; border-color:var(--navy2)}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .suggest{display:flex; flex-wrap:wrap; gap:8px; margin-top:9px}
+  .suggest button{border:1.5px solid var(--navy2); background:#eef4fc; color:var(--navy); border-radius:999px; padding:7px 13px; font-size:13.5px; font-weight:600}
+  .recog{margin-top:12px; border:1.5px solid var(--green); background:var(--greenbg); border-radius:11px; padding:12px 13px; font-size:14px}
+  .recog b.t{color:#146c3a; display:block; margin-bottom:5px}
+  .recog div{margin:2.5px 0}
+  .warnbox{margin-top:12px; border:1.5px solid var(--amber); background:var(--amberbg); border-radius:11px; padding:11px 13px; font-size:14px; color:#7a5205}
+  .btnrec{width:100%; margin-top:16px; padding:14px; border:none; border-radius:11px; background:var(--green); color:#fff; font-weight:700; font-size:15.5px}
+  .btnrec:disabled{background:#a9c6b4}
+  .summary{display:flex; gap:10px; margin-bottom:14px}
+  .summary .box{flex:1; background:var(--card); border-radius:13px; padding:12px; text-align:center; box-shadow:0 2px 10px rgba(11,37,69,.07)}
+  .summary .box b{display:block; font-size:22px; color:var(--navy)}
+  .summary .box.due b{color:var(--red)}
+  .summary .box span{font-size:12.5px; color:var(--muted)}
+  .htabs{display:flex; gap:8px; margin-bottom:12px}
+  .htabs button{flex:1; padding:11px 6px; border-radius:11px; border:1.5px solid var(--line); background:#fff; font-weight:700; color:var(--muted); cursor:pointer; font:inherit}
+  .htabs button.active{background:var(--navy); border-color:var(--navy); color:#fff}
+  .roundbig{font-size:27px; font-weight:800; color:var(--navy); text-align:center; margin:4px 0 2px}
+  .roundsub{text-align:center; color:var(--muted); font-size:13px; margin-bottom:10px}
+  .bar{height:12px; background:#e6ebf2; border-radius:8px; overflow:hidden; margin-bottom:12px}
+  .bar i{display:block; height:100%; background:#1e9e62}
+  .rrow{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:9px 10px; border:1px solid var(--line); border-radius:10px; margin-bottom:7px; background:#fff}
+  .rrow .s{font-weight:700}
+  .rrow .d{color:var(--muted); font-size:12.5px}
+  .rrow button{padding:8px 13px; border-radius:9px; border:none; background:var(--navy); color:#fff; font-weight:700; cursor:pointer; font:inherit}
+  .rhead{font-weight:800; color:var(--navy); margin:12px 0 7px}
+  .mcard .acts button.danger{background:#fdf0ef; color:#b3261e; border:1.5px solid #e5b4b0}
+  .seqtotal{padding:11px 2px; font-weight:800; color:var(--navy)}
+  .hseq{font-weight:700; color:var(--navy); background:#eef3fa; border-radius:6px; padding:1px 7px; font-size:12px; white-space:nowrap}
+  .hist .hmain{flex:1}
+  .hist .hinfo{display:flex; justify-content:space-between; align-items:center; gap:8px; padding:7px 0; border-bottom:1px dashed #e6ebf1; font-size:13.5px}
+  .mini{background:#eef3fa; color:var(--navy); border:1.5px solid var(--line); border-radius:8px; padding:6px 10px; font-weight:700; font-size:12.5px; white-space:nowrap}
+  .seqedit{background:none; border:none; color:var(--navy); font-weight:700; font-size:12.5px; padding:0 2px; white-space:nowrap}
+  .hist .hseq2{font-weight:800; color:var(--navy); font-size:13.5px}
+  .hist .hnext{color:var(--muted); font-size:12.5px; margin-top:1px}
+  .toolbar{display:flex; gap:9px; margin-bottom:12px}
+  .toolbar input{flex:1; padding:11px 12px; border:1.5px solid var(--line); border-radius:10px; background:#fff}
+  .toolbar select{padding:11px 8px; border:1.5px solid var(--line); border-radius:10px; background:#fff}
+  .mcard{background:var(--card); border-radius:14px; padding:14px 15px; margin-bottom:11px; box-shadow:0 2px 10px rgba(11,37,69,.07); border-left:6px solid #b9c6d4}
+  .mcard.done{border-left-color:var(--green)}
+  .mcard.due{border-left-color:var(--red)}
+  .mcard .r1{display:flex; align-items:flex-start; gap:9px}
+  .mcard .serial{font-weight:800; font-size:16.5px; color:var(--navy); word-break:break-all}
+  .mcard .model{font-size:12.5px; color:var(--muted); margin-top:1px}
+  .badge{margin-left:auto; flex:none; font-size:11.5px; font-weight:700; padding:4px 9px; border-radius:999px}
+  .badge.due{background:#fdecea; color:var(--red)}
+  .badge.ok{background:var(--greenbg); color:#146c3a}
+  .badge.new{background:var(--amberbg); color:var(--amber)}
+  .mcard .meta{font-size:13.5px; margin-top:8px; line-height:1.55}
+  .mcard .meta .last{color:#146c3a; font-weight:600}
+  .mcard .notebox{margin-top:9px; background:#fff8ec; border:1px dashed #e3c98f; border-radius:9px; padding:8px 10px; font-size:13.5px}
+  .mcard .acts{display:flex; flex-wrap:wrap; gap:8px; margin-top:11px}
+  .mcard .acts button{border:1.5px solid var(--line); background:#f6f8fb; border-radius:9px; padding:8px 12px; font-size:13px; font-weight:600; color:var(--navy)}
+  .mcard .acts button.primary{background:var(--navy); border-color:var(--navy); color:#fff}
+  .hist{margin-top:11px; border-top:1px solid var(--line); padding-top:9px}
+  .hist .hrow{display:flex; gap:8px; align-items:flex-start; padding:7px 0; border-bottom:1px dashed #e6ebf1; font-size:13.5px}
+  .hist .hrow:last-child{border-bottom:none}
+  .hist .hd{font-weight:700; color:var(--navy); white-space:nowrap}
+  .hist .hn{flex:1; color:#3c4c5e}
+  .hist .del{border:none; background:none; color:var(--red); font-size:15px; padding:0 2px}
+  .inlineform{margin-top:11px; border-top:1px solid var(--line); padding-top:10px}
+  .inlineform input,.inlineform textarea{width:100%; padding:10px 11px; border:1.5px solid var(--line); border-radius:9px; margin-bottom:8px; background:#fbfcfe}
+  .inlineform .save{background:var(--navy); color:#fff; border:none; padding:10px 14px; border-radius:9px; font-weight:700}
+  .empty{text-align:center; color:var(--muted); padding:26px 10px; font-size:14px}
+  .toast{position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(80px); background:var(--navy); color:#fff; padding:12px 18px; border-radius:11px; font-size:14.5px; box-shadow:0 8px 24px rgba(0,0,0,.3); transition:transform .25s; z-index:50; max-width:92vw; text-align:center}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  .celebrate{position:fixed; inset:0; background:rgba(6,25,48,.55); display:none; align-items:center; justify-content:center; z-index:60; padding:20px}
+  .celebrate.show{display:flex}
+  .celebrate .cbox{background:#fff; border-radius:20px; padding:26px 30px; text-align:center; max-width:86vw; box-shadow:0 18px 50px rgba(0,0,0,.35); animation:cpop .35s ease}
+  .celebrate .cemoji{font-size:76px; line-height:1.1}
+  .celebrate .ctitle{font-size:23px; font-weight:800; color:var(--navy); margin-top:2px}
+  .celebrate .ctext{color:var(--muted); font-size:14.5px; margin-top:5px}
+  @keyframes cpop{0%{transform:scale(.6); opacity:0} 70%{transform:scale(1.06)} 100%{transform:scale(1); opacity:1}}
+</style>
+</head>
+<body>
+
+<!-- ===== LAYAR MASUK ===== -->
+<div id="authScreen" class="authwrap">
+  <div class="authcard">
+    <img class="authlogo" src="icon-192.png" alt="Ikon kunci pas">
+    <h1>Pelacak Maintenance</h1>
+    <p class="sub">Pencatat maintenance mesin hemodialisa</p>
+
+    <form id="loginForm">
+      <label for="loginEmail">Surel</label>
+      <input id="loginEmail" type="email" autocomplete="email" required placeholder="nama@surel.com">
+      <label for="loginPass">Kata Sandi</label>
+      <input id="loginPass" type="password" autocomplete="current-password" required placeholder="Kata sandi akunmu">
+      <button class="btnmain" id="loginBtn" type="submit">Masuk</button>
+      <div class="msg" id="loginMsg"></div>
+      <button class="linkbtn" type="button" id="forgotBtn">Lupa kata sandi?</button>
+    </form>
+
+    <form id="recoverForm" class="hidden">
+      <p class="sub" style="margin-top:6px">Tulis surel akunmu. Kami kirimkan tautan untuk membuat kata sandi baru.</p>
+      <label for="recoverEmail">Surel</label>
+      <input id="recoverEmail" type="email" autocomplete="email" required placeholder="nama@surel.com">
+      <button class="btnmain" id="recoverBtn" type="submit">Kirim Tautan</button>
+      <div class="msg" id="recoverMsg"></div>
+      <button class="linkbtn" type="button" id="backLoginBtn">Kembali masuk</button>
+    </form>
+
+    <form id="setpassForm" class="hidden">
+      <p class="sub" style="margin-top:6px">Selamat datang. Buat kata sandi untuk akunmu — kata sandi ini yang kamu pakai setiap membuka pelacak ini.</p>
+      <label for="newPass">Kata Sandi Baru</label>
+      <input id="newPass" type="password" autocomplete="new-password" required minlength="8" placeholder="Minimal 8 huruf/angka">
+      <label for="newPass2">Ulangi Kata Sandi</label>
+      <input id="newPass2" type="password" autocomplete="new-password" required minlength="8" placeholder="Ketik ulang yang sama">
+      <button class="btnmain" id="setpassBtn" type="submit">Simpan Kata Sandi</button>
+      <div class="msg" id="setpassMsg"></div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== APLIKASI ===== -->
+<div id="appScreen" class="hidden">
+  <header class="top">
+    <img src="icon-192.png" alt="">
+    <div class="t"><b>Pelacak Maintenance</b><span id="hdrHospital">Mayapada Hospital Bogor</span></div>
+    <button id="logoutBtn" type="button">Keluar</button>
+  </header>
+  <main>
+    <div class="htabs" id="hospitalTabs">
+      <button type="button" data-h="Mayapada Hospital Bogor" class="active">Mayapada</button>
+      <button type="button" data-h="RS PMI">RS PMI</button>
+    </div>
+    <div class="summary">
+      <div class="box"><b id="sumTotal">0</b><span>Mesin terpantau</span></div>
+      <div class="box due"><b id="sumDue">0</b><span>Waktunya maintenance</span></div>
+      <div class="box"><b id="sumLogs">0</b><span>Catatan riwayat</span></div>
+    </div>
+
+    <section class="panel">
+      <h2>Catat Maintenance</h2>
+      <p class="hint">Ketik nomor seri mesin — saran mesin muncul sambil kamu mengetik. Tanggal terisi otomatis hari ini, bisa diubah kalau catatnya terlambat.</p>
+      <label for="snInput">Nomor Seri Mesin</label>
+      <input id="snInput" type="text" autocomplete="off" placeholder="Contoh: JH10239101010A" style="text-transform:uppercase">
+      <div class="suggest" id="suggestBox"></div>
+      <div id="recogBox"></div>
+      <div class="row2">
+        <div>
+          <label for="dateInput">Tanggal Maintenance</label>
+          <input id="dateInput" type="date">
+        </div>
+        <div>
+          <label for="hoursInput">Jam Kerja Mesin (boleh kosong)</label>
+          <input id="hoursInput" type="number" step="0.1" min="0" placeholder="Contoh: 11302">
+        </div>
+      </div>
+      <div class="row2">
+        <div>
+          <label for="seqInput">Nomor Urut (ke-berapa)</label>
+          <input id="seqInput" type="number" min="1" placeholder="Otomatis">
+        </div>
+        <div>
+          <label>Dari Total Mesin</label>
+          <div class="seqtotal" id="seqTotal">—</div>
+        </div>
+      </div>
+      <label for="workInput">Pekerjaan (boleh kosong)</label>
+      <input id="workInput" type="text" placeholder="Contoh: Ganti filter, cek pompa">
+      <button class="btnrec" id="recordBtn" type="button" disabled>Sudah Maintenance — Catat</button>
+    </section>
+
+    <div class="toolbar">
+      <input id="searchInput" type="text" placeholder="Cari nomor seri...">
+      <select id="modelFilter">
+        <option value="">Semua model</option>
+        <option value="JOYHEAL">JOYHEAL</option>
+        <option value="SWS-6000A">SWS-6000A</option>
+      </select>
+    </div>
+
+    <div id="machineList"></div>
+
+    <section class="panel">
+      <h2>Tambah Mesin Baru</h2>
+      <p class="hint">Kalau ada mesin yang belum terdaftar di daftar di atas.</p>
+      <label for="addSerial">Nomor Seri</label>
+      <input id="addSerial" type="text" placeholder="Nomor seri mesin" style="text-transform:uppercase">
+      <label for="addHospital">Rumah Sakit</label>
+      <select id="addHospital">
+        <option value="Mayapada Hospital Bogor">Mayapada Hospital Bogor</option>
+        <option value="RS PMI">RS PMI</option>
+      </select>
+      <div class="row2">
+        <div>
+          <label for="addModel">Model</label>
+          <select id="addModel">
+            <option value="JOYHEAL">JOYHEAL</option>
+            <option value="SWS-6000A">SWS-6000A</option>
+          </select>
+        </div>
+        <div>
+          <label for="addYear">Tahun</label>
+          <input id="addYear" type="number" min="2000" max="2100" placeholder="2026">
+        </div>
+      </div>
+      <label for="addNote">Catatan Mesin (boleh kosong)</label>
+      <input id="addNote" type="text" placeholder="Catatan tetap untuk mesin ini">
+      <button class="btnmain" id="addBtn" type="button" style="background:var(--navy)">Tambah Mesin</button>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="celebrate" id="celebrate"><div class="cbox"><div class="cemoji">👍</div><div class="ctitle">Mantap!</div><div class="ctext" id="celebrateText"></div></div></div>
+
+<script>
+"use strict";
+const SUPABASE_URL = "https://lrscmoopyecezuddnkpu.supabase.co";
+const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxyc2Ntb29weWVjZXp1ZGRua3B1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUxNTc3MjcsImV4cCI6MjExMDczMzcyN30.jTpE3zhG9YV-PhRFfPjdmKQ-Dlk2VqsqAr251yuRS9A";
+const CYCLE_DAYS = 45;
+
+const $ = (id) => document.getElementById(id);
+let session = null;          // {access_token, refresh_token, expires_at}
+let machines = [];           // daftar mesin
+let logs = [];               // semua riwayat
+let selectedMachine = null;  // mesin yang dikenali untuk pencatatan
+let openHistory = new Set(); // kartu yang riwayatnya sedang dibuka
+const H_MAYAPADA = "Mayapada Hospital Bogor";
+let activeHospital = localStorage.getItem("pelacak_hospital") === "RS PMI" ? "RS PMI" : H_MAYAPADA;
+let totals = {"Mayapada Hospital Bogor": 11, "RS PMI": 49}; // total mesin per RS, bisa diubah dari halaman Ronde
+function shortH(h){ return h === "RS PMI" ? "RS PMI" : "Mayapada"; }
+function inHospital(m){ return !activeHospital || (m.hospital || H_MAYAPADA) === activeHospital; }
+function syncHospitalTabs(){
+  document.querySelectorAll("#hospitalTabs button").forEach(b => b.classList.toggle("active", b.dataset.h === activeHospital));
+  const ah = $("addHospital"); if(ah && activeHospital) ah.value = activeHospital;
+  $("hdrHospital").textContent = activeHospital;
+}
+
+/* ---------------- tanggal (Asia/Jakarta) ---------------- */
+function todayJakarta(){
+  return new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta"}).format(new Date());
+}
+function parseD(s){ const [y,m,d] = s.split("-").map(Number); return Date.UTC(y, m-1, d); }
+function fmtD(ms){
+  const t = new Date(ms);
+  const y = t.getUTCFullYear(), m = String(t.getUTCMonth()+1).padStart(2,"0"), d = String(t.getUTCDate()).padStart(2,"0");
+  return `${y}-${m}-${d}`;
+}
+function addDays(dateStr, n){ return fmtD(parseD(dateStr) + n*86400000); }
+function diffDays(fromStr, toStr){ return Math.round((parseD(toStr) - parseD(fromStr)) / 86400000); }
+const MONTHS_ID = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+function pretty(dateStr){
+  if(!dateStr) return "-";
+  const [y,m,d] = dateStr.split("-").map(Number);
+  return `${d} ${MONTHS_ID[m-1]} ${y}`;
+}
+function esc(s){
+  return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+/* ---------------- sesi ---------------- */
+function saveSession(s){
+  session = s;
+  if(s) localStorage.setItem("pelacak_session", JSON.stringify(s));
+  else localStorage.removeItem("pelacak_session");
+}
+function loadSession(){
+  try{ session = JSON.parse(localStorage.getItem("pelacak_session") || "null"); }
+  catch(e){ session = null; }
+  return session;
+}
+async function authApi(path, body, token){
+  const res = await fetch(SUPABASE_URL + "/auth/v1" + path, {
+    method: body ? "POST" : "GET",
+    headers: {
+      "apikey": ANON_KEY,
+      "Authorization": "Bearer " + (token || ANON_KEY),
+      "Content-Type": "application/json"
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const data = await res.json().catch(() => ({}));
+  if(!res.ok) throw new Error(data.error_description || data.msg || data.message || ("HTTP " + res.status));
+  return data;
+}
+async function refreshSession(){
+  if(!session || !session.refresh_token) return false;
+  try{
+    const d = await authApi("/token?grant_type=refresh_token", {refresh_token: session.refresh_token});
+    saveSession({access_token: d.access_token, refresh_token: d.refresh_token, expires_at: Date.now() + (d.expires_in||3600)*1000});
+    return true;
+  }catch(e){ saveSession(null); return false; }
+}
+async function ensureSession(){
+  loadSession();
+  if(!session) return false;
+  if(session.expires_at && Date.now() > session.expires_at - 60000){
+    return await refreshSession();
+  }
+  return true;
+}
+
+/* ---------------- data (PostgREST) ---------------- */
+async function rest(path, opts = {}){
+  const headers = {
+    "apikey": ANON_KEY,
+    "Authorization": "Bearer " + (session ? session.access_token : ANON_KEY),
+    "Content-Type": "application/json"
+  };
+  if(opts.method && opts.method !== "GET") headers["Prefer"] = "return=representation";
+  const res = await fetch(SUPABASE_URL + "/rest/v1" + path, {headers, ...opts});
+  if(res.status === 401){ if(await refreshSession()) return rest(path, opts); throw new Error("Sesi berakhir. Silakan masuk lagi."); }
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
+  if(!res.ok) throw new Error((data && (data.message || data.hint)) || ("HTTP " + res.status));
+  return data;
+}
+async function loadData(){
+  machines = await rest("/machines?select=*&order=serial.asc");
+  machines.forEach(m => { if(!m.hospital) m.hospital = H_MAYAPADA; });
+  logs = await rest("/maintenance_logs?select=*&order=date.desc,created_at.desc");
+  try{
+    const ss = await rest("/settings?select=key,value");
+    (ss || []).forEach(r => {
+      if(r.key && r.key.startsWith("total:")){
+        const n = parseInt(r.value, 10);
+        if(n > 0) totals[r.key.slice(6)] = n;
+      }
+    });
+  }catch(e){ /* total bawaan dipakai bila gudang pengaturan tak terbaca */ }
+  renderAll();
+}
+function logsOf(machineId){ return logs.filter(l => l.machine_id === machineId); }
+function lastLog(machineId){
+  const l = logsOf(machineId);
+  if(!l.length) return null;
+  const withSeq = l.filter(x => x.seq != null);
+  if(withSeq.length){
+    return withSeq.slice().sort((a, b) => ((a.round || 1) - (b.round || 1)) || (a.seq - b.seq) || (a.created_at < b.created_at ? -1 : 1))[withSeq.length - 1];
+  }
+  return l[0];
+}
+function machineStatus(m){
+  const last = lastLog(m.id);
+  const today = todayJakarta();
+  if(!last) return {state:"new", last:null, next:null, days:0};
+  const next = addDays(last.date, CYCLE_DAYS);
+  const days = diffDays(today, next);
+  if(days < 0) return {state:"due", last, next, days:-days};
+  return {state:"ok", last, next, days};
+}
+
+/* ---------------- tampilan ---------------- */
+function toast(text){
+  const t = $("toast"); t.textContent = text; t.classList.add("show");
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 2600);
+}
+function showScreen(name){
+  $("authScreen").classList.toggle("hidden", name !== "auth");
+  $("appScreen").classList.toggle("hidden", name !== "app");
+  if(name === "auth"){
+    $("loginForm").classList.remove("hidden");
+    $("recoverForm").classList.add("hidden");
+    $("setpassForm").classList.add("hidden");
+  }
+}
+function showMsg(id, text, ok){
+  const el = $(id); el.textContent = text;
+  el.className = "msg " + (ok ? "ok" : "err");
+}
+
+function renderSummary(){
+  const ms = machines.filter(inHospital);
+  const ids = new Set(ms.map(m => m.id));
+  $("sumTotal").textContent = ms.length;
+  $("sumLogs").textContent = logs.filter(l => ids.has(l.machine_id)).length;
+  $("sumDue").textContent = ms.filter(m => machineStatus(m).state !== "ok").length;
+}
+
+function renderSuggestions(){
+  const q = $("snInput").value.trim().toUpperCase();
+  const box = $("suggestBox"); box.innerHTML = "";
+  if(!q){ renderRecog(); return; }
+  const hits = machines.filter(m => m.serial.toUpperCase().includes(q)).slice(0, 6);
+  hits.forEach(m => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = m.serial;
+    b.addEventListener("click", () => { $("snInput").value = m.serial; pickMachine(m); });
+    box.appendChild(b);
+  });
+  const exact = machines.find(m => m.serial.toUpperCase() === q);
+  if(exact) pickMachine(exact, true); else { selectedMachine = null; renderRecog(); }
+  $("recordBtn").disabled = !selectedMachine;
+}
+function pickMachine(m, silent){
+  selectedMachine = m;
+  $("snInput").value = m.serial;
+  renderSuggestionsListOnly();
+  renderRecog();
+  $("recordBtn").disabled = false;
+  if(!silent) toast("Mesin dikenali: " + m.serial);
+}
+function renderSuggestionsListOnly(){
+  const q = $("snInput").value.trim().toUpperCase();
+  const box = $("suggestBox"); box.innerHTML = "";
+  machines.filter(m => m.serial.toUpperCase().includes(q) && m.serial.toUpperCase() !== q).slice(0, 6)
+    .forEach(m => {
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = m.serial;
+      b.addEventListener("click", () => pickMachine(m));
+      box.appendChild(b);
+    });
+}
+function renderRecog(){
+  const box = $("recogBox");
+  const q = $("snInput").value.trim().toUpperCase();
+  if(!selectedMachine){ $("seqInput").value = ""; $("seqTotal").textContent = "—"; }
+  if(selectedMachine){
+    const st = machineStatus(selectedMachine);
+    const ns = nextSeqInfo(selectedMachine.hospital || H_MAYAPADA);
+    $("seqInput").value = ns.seq;
+    $("seqTotal").textContent = `dari ${ns.total} — ${shortH(selectedMachine.hospital || H_MAYAPADA)}`;
+    const lastTxt = st.last ? pretty(st.last.date) : "belum pernah";
+    const nextTxt = st.last ? `${pretty(st.next)} (${st.state === "due" ? "lewat " + st.days + " hari" : st.days + " hari lagi"})` : "-";
+    box.innerHTML = `<div class="recog"><b class="t">✓ Mesin dikenali</b>
+      <div><b>${esc(selectedMachine.serial)}</b> · ${esc(selectedMachine.model)} · Tahun ${selectedMachine.year ?? "-"}</div>
+      <div>Rumah sakit: ${esc(selectedMachine.hospital || H_MAYAPADA)}</div>
+      <div>Jam kerja: ${selectedMachine.hours != null ? Number(selectedMachine.hours).toLocaleString("id-ID") + " jam" : "belum diisi"}</div>
+      <div>Maintenance terakhir: ${lastTxt}</div>
+      <div>Nomor urut catatan ini: <b>ke-${ns.seq} dari ${ns.total}</b> — bisa diganti di kolom Nomor Urut</div>
+      <div>Jadwal berikutnya: ${nextTxt}</div>
+      ${selectedMachine.note ? `<div>Catatan: ${esc(selectedMachine.note)}</div>` : ""}
+    </div>`;
+  } else if(q.length >= 3){
+    box.innerHTML = `<div class="warnbox">Nomor seri ini belum terdaftar. Periksa lagi ketikannya, atau daftarkan lewat formulir <b>Tambah Mesin Baru</b> di bawah.</div>`;
+  } else {
+    box.innerHTML = "";
+  }
+}
+
+function sortedMachines(){
+  const q = $("searchInput").value.trim().toUpperCase();
+  const f = $("modelFilter").value;
+  let list = machines.filter(m =>
+    inHospital(m) && (!q || m.serial.toUpperCase().includes(q)) && (!f || m.model === f));
+  const rank = (m) => { const s = machineStatus(m).state; return s === "due" ? 0 : s === "new" ? 1 : 2; };
+  const seqOf = (m) => { const l = lastLog(m.id); return l && l.seq != null ? l.seq : Infinity; };
+  list.sort((a, b) => {
+    const ra = rank(a), rb = rank(b);
+    if(ra !== rb) return ra - rb;
+    const sa = machineStatus(a), sb = machineStatus(b);
+    if(sa.state === "due" && sb.state === "due") return sb.days - sa.days;
+    const qa = seqOf(a), qb = seqOf(b);
+    if(qa !== qb) return qa - qb;
+    if(sa.next && sb.next) return sa.next < sb.next ? -1 : 1;
+    return a.serial < b.serial ? -1 : 1;
+  });
+  return list;
+}
+
+function renderList(){
+  const list = sortedMachines();
+  const wrap = $("machineList");
+  if(!list.length){ wrap.innerHTML = `<div class="panel empty">Tidak ada mesin yang cocok dengan pencarian.</div>`; return; }
+  wrap.innerHTML = list.map(m => {
+    const st = machineStatus(m);
+    const myLogs = logsOf(m.id).slice().sort((a, b) => ((a.round || 1) - (b.round || 1)) || ((a.seq ?? 99999) - (b.seq ?? 99999)) || (a.date < b.date ? -1 : 1) || (a.created_at < b.created_at ? -1 : 1));
+    const badge = st.state === "due" ? `<span class="badge due">Waktunya maintenance</span>`
+      : st.state === "new" ? `<span class="badge new">Belum pernah</span>`
+      : `<span class="badge ok">Sudah ✓</span>`;
+    const lastLine = st.last
+      ? `<span class="last">✓ Terakhir: ${pretty(st.last.date)}</span>${st.last.seq ? ` · <b>Maintenance ke-${st.last.seq} dari ${totals[m.hospital || H_MAYAPADA] || "?"}</b>` : ""} · berikutnya ${pretty(st.next)} (${st.state === "due" ? "lewat " + st.days + " hari" : st.days + " hari lagi"})`
+      : `Belum ada catatan maintenance`;
+    const hist = openHistory.has(m.id) ? `<div class="hist">
+      <div class="hinfo"><span>Jam kerja: <b>${m.hours != null ? Number(m.hours).toLocaleString("id-ID") + " jam" : "belum diisi"}</b></span><button class="mini" data-hours="${m.id}">Ubah Jam Kerja</button></div>
+      <div class="hinfo"><span>Catatan mesin: <b>${m.note ? esc(m.note) : "—"}</b></span><button class="mini" data-note="${m.id}">Ubah Catatan</button></div>
+      ${
+      myLogs.length ? myLogs.map(l => `<div class="hrow"><div class="hmain">${l.seq ? `<div class="hseq2">Maintenance ke-${l.seq} dari ${totals[m.hospital || H_MAYAPADA] || "?"}</div>` : ""}<div class="hd">${pretty(l.date)}${l.note ? ` · ${esc(l.note)}` : ""}</div><div class="hnext">Jadwal berikutnya: ${pretty(addDays(l.date, CYCLE_DAYS))}</div></div>${l.seq ? `<button class="seqedit" data-seq="${l.id}">Ubah Nomor</button>` : ""}<button class="del" data-del="${l.id}" title="Hapus catatan ini">✕</button></div>`).join("")
+      : `<div class="hrow"><span class="hn">Belum ada riwayat.</span></div>`
+    }</div>` : "";
+    return `<div class="mcard ${st.state === "due" ? "due" : st.state === "ok" ? "done" : ""}">
+      <div class="r1"><div><div class="serial">${esc(m.serial)}</div><div class="model">${esc(m.model)} · Tahun ${m.year ?? "-"} · ${esc(shortH(m.hospital || H_MAYAPADA))}</div></div>${badge}</div>
+      <div class="meta">${lastLine}<br>Jam kerja: ${m.hours != null ? Number(m.hours).toLocaleString("id-ID") + " jam" : "belum diisi"} · ${myLogs.length} catatan</div>
+      ${m.note ? `<div class="notebox">📌 ${esc(m.note)}</div>` : ""}
+      <div class="acts">
+        <button class="primary" data-record="${m.id}">Catat Maintenance</button>
+        <button data-hist="${m.id}">${openHistory.has(m.id) ? "Tutup Riwayat" : "Riwayat"}</button>
+        <button class="danger" data-del-machine="${m.id}">Hapus Mesin</button>
+      </div>
+      <div id="extra-${m.id}"></div>
+      ${hist}
+    </div>`;
+  }).join("");
+
+  wrap.querySelectorAll("[data-record]").forEach(b => b.addEventListener("click", () => {
+    const m = machines.find(x => x.id === b.dataset.record);
+    if(m){ pickMachine(m); window.scrollTo({top: 0, behavior: "smooth"}); }
+  }));
+  wrap.querySelectorAll("[data-hist]").forEach(b => b.addEventListener("click", () => {
+    const id = b.dataset.hist;
+    openHistory.has(id) ? openHistory.delete(id) : openHistory.add(id);
+    renderList();
+  }));
+  wrap.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", async () => {
+    if(!confirm("Hapus catatan ini?")) return;
+    try{
+      await rest(`/maintenance_logs?id=eq.${b.dataset.del}`, {method: "DELETE"});
+      logs = logs.filter(l => l.id !== b.dataset.del);
+      renderAll(); toast("Catatan dihapus");
+    }catch(e){ toast("Gagal menghapus: " + e.message); }
+  }));
+  wrap.querySelectorAll("[data-note]").forEach(b => b.addEventListener("click", () => openNoteForm(b.dataset.note)));
+  wrap.querySelectorAll("[data-hours]").forEach(b => b.addEventListener("click", () => openHoursForm(b.dataset.hours)));
+  wrap.querySelectorAll("[data-seq]").forEach(b => b.addEventListener("click", () => openSeqForm(b.dataset.seq)));
+  wrap.querySelectorAll("[data-del-machine]").forEach(b => b.addEventListener("click", async () => {
+    const m = machines.find(x => x.id === b.dataset.delMachine);
+    if(!m) return;
+    const n = logsOf(m.id).length;
+    const pesan = `Hapus mesin ${m.serial} (${m.hospital || H_MAYAPADA})?`
+      + (n ? `\n\n${n} catatan riwayatnya ikut terhapus permanen.` : "\n\nMesin ini belum punya catatan riwayat.")
+      + "\n\nTindakan ini tidak bisa dibatalkan.";
+    if(!confirm(pesan)) return;
+    try{
+      await rest(`/machines?id=eq.${m.id}`, {method: "DELETE"});
+      machines = machines.filter(x => x.id !== m.id);
+      logs = logs.filter(l => l.machine_id !== m.id);
+      if(selectedMachine && selectedMachine.id === m.id){ selectedMachine = null; $("snInput").value = ""; }
+      renderAll(); toast("Mesin " + m.serial + " dihapus");
+    }catch(e){ toast("Gagal menghapus mesin: " + e.message); }
+  }));
+}
+
+function openSeqForm(logId){
+  const l = logs.find(x => x.id === logId);
+  if(!l) return;
+  const m = machines.find(x => x.id === l.machine_id);
+  if(!m) return;
+  const total = totals[m.hospital || H_MAYAPADA] || 0;
+  const slot = $("extra-" + m.id);
+  slot.innerHTML = `<div class="inlineform">
+    <input type="number" id="seqVal-${l.id}" min="1" max="${total}" value="${l.seq}">
+    <button class="save" id="seqSave-${l.id}">Simpan Nomor (dari ${total})</button>
+  </div>`;
+  $("seqVal-" + l.id).focus();
+  $("seqSave-" + l.id).addEventListener("click", async () => {
+    const n = parseInt($("seqVal-" + l.id).value, 10);
+    if(!n || n < 1 || n > total){ toast(`Nomor harus antara 1 sampai ${total}`); return; }
+    try{
+      await rest(`/maintenance_logs?id=eq.${l.id}`, {method: "PATCH", body: JSON.stringify({seq: n})});
+      l.seq = n; renderAll(); toast(`Nomor urut diubah menjadi ke-${n} dari ${total}`);
+    }catch(e){ toast("Gagal mengubah nomor: " + e.message); }
+  });
+}
+
+function openNoteForm(machineId){
+  const m = machines.find(x => x.id === machineId);
+  const slot = $("extra-" + machineId);
+  slot.innerHTML = `<div class="inlineform">
+    <input type="text" id="noteVal-${machineId}" placeholder="Catatan tetap untuk mesin ini" value="${esc(m.note || "")}">
+    <button class="save" id="noteSave-${machineId}">Simpan Catatan</button>
+  </div>`;
+  $("noteVal-" + machineId).focus();
+  $("noteSave-" + machineId).addEventListener("click", async () => {
+    const val = $("noteVal-" + machineId).value.trim();
+    try{
+      await rest(`/machines?id=eq.${machineId}`, {method: "PATCH", body: JSON.stringify({note: val})});
+      m.note = val; slot.innerHTML = ""; renderAll(); toast("Catatan mesin tersimpan");
+    }catch(e){ toast("Gagal menyimpan: " + e.message); }
+  });
+}
+function openHoursForm(machineId){
+  const m = machines.find(x => x.id === machineId);
+  const slot = $("extra-" + machineId);
+  slot.innerHTML = `<div class="inlineform">
+    <input type="number" step="0.1" min="0" id="hoursVal-${machineId}" placeholder="Jam kerja mesin saat ini" value="${m.hours ?? ""}">
+    <button class="save" id="hoursSave-${machineId}">Simpan Jam Kerja</button>
+  </div>`;
+  $("hoursVal-" + machineId).focus();
+  $("hoursSave-" + machineId).addEventListener("click", async () => {
+    const raw = $("hoursVal-" + machineId).value;
+    const val = raw === "" ? null : Number(raw);
+    try{
+      await rest(`/machines?id=eq.${machineId}`, {method: "PATCH", body: JSON.stringify({hours: val})});
+      m.hours = val; slot.innerHTML = ""; renderAll(); toast("Jam kerja tersimpan");
+    }catch(e){ toast("Gagal menyimpan: " + e.message); }
+  });
+}
+
+function logsOfHospital(h){
+  const ids = new Set(machines.filter(m => (m.hospital || H_MAYAPADA) === h).map(m => m.id));
+  return logs.filter(l => ids.has(l.machine_id));
+}
+function lastSeqInfo(h){
+  const ls = logsOfHospital(h).filter(l => l.seq != null);
+  if(!ls.length) return null;
+  ls.sort((a, b) => ((a.round || 1) - (b.round || 1)) || (a.seq - b.seq) || (a.created_at < b.created_at ? -1 : 1));
+  return ls[ls.length - 1];
+}
+function nextSeqInfo(h){
+  const total = totals[h] || 0;
+  const last = lastSeqInfo(h);
+  if(!last) return {seq: 1, round: 1, total};
+  if(last.seq >= total) return {seq: 1, round: (last.round || 1) + 1, total};
+  return {seq: last.seq + 1, round: last.round || 1, total};
+}
+function renderAll(){ syncHospitalTabs(); renderSummary(); renderList(); renderRecog(); }
+
+let celebrateTimer = null;
+function showCelebrate(text){
+  $("celebrateText").textContent = text;
+  const c = $("celebrate");
+  c.classList.add("show");
+  clearTimeout(celebrateTimer);
+  celebrateTimer = setTimeout(() => c.classList.remove("show"), 2800);
+}
+$("celebrate").addEventListener("click", () => $("celebrate").classList.remove("show"));
+
+/* ---------------- aksi ---------------- */
+$("snInput").addEventListener("input", renderSuggestions);
+$("searchInput").addEventListener("input", renderList);
+$("modelFilter").addEventListener("change", renderList);
+document.querySelectorAll("#hospitalTabs button").forEach(b => b.addEventListener("click", () => {
+  activeHospital = b.dataset.h;
+  localStorage.setItem("pelacak_hospital", activeHospital);
+  renderAll();
+}));
+
+$("recordBtn").addEventListener("click", async () => {
+  if(!selectedMachine) return;
+  const date = $("dateInput").value || todayJakarta();
+  const note = $("workInput").value.trim();
+  const hoursRaw = $("hoursInput").value;
+  const btn = $("recordBtn"); btn.disabled = true;
+  try{
+    const hosp = selectedMachine.hospital || H_MAYAPADA;
+    const ns = nextSeqInfo(hosp);
+    let seqUse = ns.seq, roundUse = ns.round;
+    const seqRaw = $("seqInput").value.trim();
+    if(seqRaw !== ""){
+      const n = parseInt(seqRaw, 10);
+      if(!n || n < 1 || n > ns.total){ toast(`Nomor urut harus antara 1 sampai ${ns.total}`); btn.disabled = false; return; }
+      if(n !== ns.seq){ const last = lastSeqInfo(hosp); roundUse = last ? (last.round || 1) : 1; }
+      seqUse = n;
+    }
+    const rows = await rest("/maintenance_logs", {method: "POST", body: JSON.stringify({machine_id: selectedMachine.id, date, note, seq: seqUse, round: roundUse})});
+    if(!rows || !rows[0]) throw new Error("Simpanan tidak terkonfirmasi gudang");
+    logs.unshift(rows[0]);
+    logs.sort((a, b) => (b.date + b.created_at) < (a.date + a.created_at) ? -1 : 1);
+    if(hoursRaw !== ""){
+      const h = Number(hoursRaw);
+      await rest(`/machines?id=eq.${selectedMachine.id}`, {method: "PATCH", body: JSON.stringify({hours: h})});
+      selectedMachine.hours = h;
+    }
+    $("workInput").value = ""; $("hoursInput").value = "";
+    renderAll();
+    showCelebrate(`${selectedMachine.serial} — Maintenance ke-${seqUse} dari ${ns.total} (${shortH(hosp)})`);
+  }catch(e){ toast("Gagal mencatat: " + e.message); }
+  btn.disabled = false;
+});
+
+$("addBtn").addEventListener("click", async () => {
+  const serial = $("addSerial").value.trim().toUpperCase();
+  if(!serial){ toast("Isi dulu nomor serinya"); return; }
+  const model = $("addModel").value;
+  const hospital = $("addHospital").value;
+  const yearRaw = $("addYear").value;
+  const note = $("addNote").value.trim();
+  try{
+    const rows = await rest("/machines", {method: "POST", body: JSON.stringify({serial, model, hospital, year: yearRaw === "" ? null : Number(yearRaw), note})});
+    if(rows && rows[0]) machines.push(rows[0]);
+    machines.sort((a, b) => a.serial < b.serial ? -1 : 1);
+    $("addSerial").value = ""; $("addYear").value = ""; $("addNote").value = "";
+    activeHospital = hospital; localStorage.setItem("pelacak_hospital", activeHospital);
+    renderAll(); toast("Mesin " + serial + " ditambahkan");
+  }catch(e){
+    toast(e.message.includes("duplicate") || e.message.includes("unique") ? "Nomor seri itu sudah terdaftar" : "Gagal menambah: " + e.message);
+  }
+});
+
+$("logoutBtn").addEventListener("click", async () => {
+  try{ await authApi("/logout", {}, session && session.access_token); }catch(e){}
+  saveSession(null); selectedMachine = null;
+  showScreen("auth");
+});
+
+/* ---------------- masuk / daftar kata sandi ---------------- */
+$("loginForm").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const btn = $("loginBtn"); btn.disabled = true;
+  try{
+    const d = await authApi("/token?grant_type=password", {email: $("loginEmail").value.trim(), password: $("loginPass").value});
+    saveSession({access_token: d.access_token, refresh_token: d.refresh_token, expires_at: Date.now() + (d.expires_in||3600)*1000});
+    showScreen("app");
+    await loadData();
+  }catch(e){ showMsg("loginMsg", "Tidak bisa masuk: " + e.message, false); }
+  btn.disabled = false;
+});
+$("forgotBtn").addEventListener("click", () => {
+  $("loginForm").classList.add("hidden"); $("recoverForm").classList.remove("hidden");
+  $("recoverEmail").value = $("loginEmail").value;
+});
+$("backLoginBtn").addEventListener("click", () => showScreen("auth"));
+$("recoverForm").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const btn = $("recoverBtn"); btn.disabled = true;
+  try{
+    await authApi("/recover", {email: $("recoverEmail").value.trim()});
+    showMsg("recoverMsg", "Tautan sudah dikirim. Periksa kotak masuk surelmu, lalu ketuk tautannya untuk membuat kata sandi baru.", true);
+  }catch(e){ showMsg("recoverMsg", "Gagal mengirim: " + e.message, false); }
+  btn.disabled = false;
+});
+$("setpassForm").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const p1 = $("newPass").value, p2 = $("newPass2").value;
+  if(p1 !== p2){ showMsg("setpassMsg", "Kedua kata sandi tidak sama. Periksa lagi.", false); return; }
+  const btn = $("setpassBtn"); btn.disabled = true;
+  try{
+    const res = await fetch(SUPABASE_URL + "/auth/v1/user", {
+      method: "PUT",
+      headers: {"apikey": ANON_KEY, "Authorization": "Bearer " + session.access_token, "Content-Type": "application/json"},
+      body: JSON.stringify({password: p1})
+    });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok) throw new Error(data.msg || data.message || ("HTTP " + res.status));
+    history.replaceState(null, "", window.location.pathname);
+    showScreen("app");
+    await loadData();
+    toast("Kata sandi tersimpan. Selamat datang!");
+  }catch(e){ showMsg("setpassMsg", "Gagal menyimpan kata sandi: " + e.message, false); }
+  btn.disabled = false;
+});
+
+/* ---------------- mulai ---------------- */
+async function init(){
+  $("dateInput").value = todayJakarta();
+  // Tautan undangan / atur ulang kata sandi dari surel tiba dengan potongan # di alamat
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const type = hash.get("type");
+  const at = hash.get("access_token");
+  if(at && (type === "invite" || type === "recovery")){
+    saveSession({access_token: at, refresh_token: hash.get("refresh_token") || "", expires_at: Date.now() + 3600000});
+    showScreen("auth");
+    $("loginForm").classList.add("hidden");
+    $("setpassForm").classList.remove("hidden");
+    return;
+  }
+  if(await ensureSession()){
+    showScreen("app");
+    try{ await loadData(); }
+    catch(e){ showScreen("auth"); }
+  } else {
+    showScreen("auth");
+  }
+}
+if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(() => {}); }
+init();
+</script>
+</body>
+</html>
