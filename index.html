@@ -60,7 +60,9 @@
   .sidebar .menuitem .dot{width:9px; height:9px; border-radius:50%; background:rgba(255,255,255,.4); flex:none}
   .sidebar .menuitem.active{background:rgba(255,255,255,.14); border-left-color:#5eb2ff; color:#fff}
   .sidebar .menuitem.active .dot{background:#5eb2ff}
-  .sidebar .foot{margin-top:auto; padding:14px 18px; font-size:11.5px; opacity:.55}
+  .sidebar .sidebottom{margin-top:auto}
+  .sidebar .side-sep{height:1px; background:rgba(255,255,255,.16); margin:10px 14px 6px}
+  .sidebar .foot{padding:14px 18px; font-size:11.5px; opacity:.55}
   .scrim{position:fixed; inset:0; background:rgba(6,25,48,.5); z-index:30; display:none}
   .scrim.show{display:block}
   @media (min-width:861px){
@@ -217,7 +219,11 @@
     <div class="menulabel">Rumah Sakit</div>
     <button type="button" class="menuitem active" data-h="Mayapada Hospital Bogor"><span class="dot"></span>RS Mayapada</button>
     <button type="button" class="menuitem" data-h="RS PMI"><span class="dot"></span>RS PMI</button>
-    <div class="foot">Pencatat maintenance mesin hemodialisa</div>
+    <div class="sidebottom">
+      <div class="side-sep"></div>
+      <button type="button" class="menuitem" id="logoutMenuBtn"><span class="dot"></span>Logout</button>
+      <div class="foot">Pencatat maintenance mesin hemodialisa</div>
+    </div>
   </nav>
   <div class="scrim" id="scrim"></div>
   <header class="top">
@@ -725,12 +731,14 @@ $("menuBtn").addEventListener("click", () => {
 });
 $("scrim").addEventListener("click", closeSidebar);
 document.addEventListener("keydown", (ev) => { if(ev.key === "Escape") closeSidebar(); });
-document.querySelectorAll("#sidebar .menuitem").forEach(b => b.addEventListener("click", () => {
+document.querySelectorAll("#sidebar .menuitem[data-h]").forEach(b => b.addEventListener("click", () => {
   activeHospital = b.dataset.h;
   localStorage.setItem("pelacak_hospital", activeHospital);
   renderAll();
   closeSidebar();
 }));
+/* Logout dari sidebar memakai tombol Keluar yang sama persis — tanpa logika logout baru. */
+$("logoutMenuBtn").addEventListener("click", () => { closeSidebar(); $("logoutBtn").click(); });
 document.querySelectorAll("#techChips .techchip").forEach(b => b.addEventListener("click", () => {
   selectedTech = b.dataset.tech;
   document.querySelectorAll("#techChips .techchip").forEach(x => x.classList.toggle("active", x === b));
