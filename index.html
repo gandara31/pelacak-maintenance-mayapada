@@ -113,6 +113,23 @@
   .toolbar{display:flex; gap:9px; margin-bottom:12px}
   .toolbar input{flex:1; padding:11px 12px; border:1.5px solid var(--line); border-radius:10px; background:#fff}
   .toolbar select{padding:11px 8px; border:1.5px solid var(--line); border-radius:10px; background:#fff}
+  /* ---------- kelompok tipe mesin berdampingan ---------- */
+  .typecols{display:grid; grid-template-columns:1fr; gap:18px; align-items:start}
+  .typehead{display:flex; align-items:baseline; gap:8px; margin:2px 0 10px; padding-bottom:8px; border-bottom:2px solid var(--navy)}
+  .typehead h2{margin:0; font-size:17px; color:var(--navy)}
+  .typehead .count{background:var(--navy); color:#fff; font-size:12px; font-weight:700; border-radius:999px; padding:2px 9px}
+  .colhead{display:flex; align-items:baseline; gap:8px; margin:2px 0 10px}
+  .colhead h3{margin:0; font-size:16px; color:var(--navy)}
+  .colhead .count{background:var(--navy); color:#fff; font-size:12px; font-weight:700; border-radius:999px; padding:2px 9px}
+  .colhead.due h3{color:var(--red)}
+  .colhead.due .count{background:var(--red)}
+  .colhead.ok h3{color:#146c3a}
+  .colhead.ok .count{background:var(--green)}
+  @media (min-width:861px){ .typecols{grid-template-columns:1fr 1fr} }
+  /* ---------- pilihan teknisi ---------- */
+  .techchips{display:flex; gap:9px; margin-top:2px}
+  .techchip{flex:1; padding:11px 10px; border-radius:10px; border:1.5px solid var(--line); background:#f6f8fb; font-weight:700; color:var(--navy); font-size:14.5px}
+  .techchip.active{background:var(--navy); border-color:var(--navy); color:#fff}
   .mcard{background:var(--card); border-radius:14px; padding:14px 15px; margin-bottom:11px; box-shadow:0 2px 10px rgba(11,37,69,.07); border-left:6px solid #b9c6d4}
   .mcard.done{border-left-color:var(--green)}
   .mcard.due{border-left-color:var(--red)}
@@ -223,16 +240,8 @@
       <input id="snInput" type="text" autocomplete="off" placeholder="Contoh: JH10239101010A" style="text-transform:uppercase">
       <div class="suggest" id="suggestBox"></div>
       <div id="recogBox"></div>
-      <div class="row2">
-        <div>
-          <label for="dateInput">Tanggal Maintenance</label>
-          <input id="dateInput" type="date">
-        </div>
-        <div>
-          <label for="hoursInput">Jam Kerja Mesin (boleh kosong)</label>
-          <input id="hoursInput" type="number" step="0.1" min="0" placeholder="Contoh: 11302">
-        </div>
-      </div>
+      <label for="dateInput">Tanggal Maintenance</label>
+      <input id="dateInput" type="date">
       <div class="row2">
         <div>
           <label for="seqInput">Nomor Urut (ke-berapa)</label>
@@ -245,6 +254,11 @@
       </div>
       <label for="workInput">Pekerjaan (boleh kosong)</label>
       <input id="workInput" type="text" placeholder="Contoh: Ganti filter, cek pompa">
+      <label>Di-maintenance oleh <span style="color:var(--red)">*</span></label>
+      <div class="techchips" id="techChips">
+        <button type="button" class="techchip" data-tech="Dena">Dena</button>
+        <button type="button" class="techchip" data-tech="Mariyanes">Mariyanes</button>
+      </div>
       <button class="btnrec" id="recordBtn" type="button" disabled>Sudah Maintenance — Catat</button>
     </section>
 
@@ -303,6 +317,8 @@ let session = null;          // {access_token, refresh_token, expires_at}
 let machines = [];           // daftar mesin
 let logs = [];               // semua riwayat
 let selectedMachine = null;  // mesin yang dikenali untuk pencatatan
+let selectedTech = null;     // Dena / Mariyanes — wajib dipilih sebelum mencatat
+function updateRecordBtn(){ $("recordBtn").disabled = !selectedMachine || !selectedTech; }
 let openHistory = new Set(); // kartu yang riwayatnya sedang dibuka
 const H_MAYAPADA = "Mayapada Hospital Bogor";
 let activeHospital = localStorage.getItem("pelacak_hospital") === "RS PMI" ? "RS PMI" : H_MAYAPADA;
@@ -469,14 +485,14 @@ function renderSuggestions(){
   });
   const exact = machines.find(m => m.serial.toUpperCase() === q);
   if(exact) pickMachine(exact, true); else { selectedMachine = null; renderRecog(); }
-  $("recordBtn").disabled = !selectedMachine;
+  updateRecordBtn();
 }
 function pickMachine(m, silent){
   selectedMachine = m;
   $("snInput").value = m.serial;
   renderSuggestionsListOnly();
   renderRecog();
-  $("recordBtn").disabled = false;
+  updateRecordBtn();
   if(!silent) toast("Mesin dikenali: " + m.serial);
 }
 function renderSuggestionsListOnly(){
@@ -504,7 +520,6 @@ function renderRecog(){
     box.innerHTML = `<div class="recog"><b class="t">✓ Mesin dikenali</b>
       <div><b>${esc(selectedMachine.serial)}</b> · ${esc(selectedMachine.model)} · Tahun ${selectedMachine.year ?? "-"}</div>
       <div>Rumah sakit: ${esc(selectedMachine.hospital || H_MAYAPADA)}</div>
-      <div>Jam kerja: ${selectedMachine.hours != null ? Number(selectedMachine.hours).toLocaleString("id-ID") + " jam" : "belum diisi"}</div>
       <div>Maintenance terakhir: ${lastTxt}</div>
       <div>Nomor urut catatan ini: <b>ke-${ns.seq} dari ${ns.total}</b> — bisa diganti di kolom Nomor Urut</div>
       <div>Jadwal berikutnya: ${nextTxt}</div>
@@ -537,11 +552,7 @@ function sortedMachines(){
   return list;
 }
 
-function renderList(){
-  const list = sortedMachines();
-  const wrap = $("machineList");
-  if(!list.length){ wrap.innerHTML = `<div class="panel empty">Tidak ada mesin yang cocok dengan pencarian.</div>`; return; }
-  wrap.innerHTML = list.map(m => {
+function machineCard(m){
     const st = machineStatus(m);
     const myLogs = logsOf(m.id).slice().sort((a, b) => ((a.round || 1) - (b.round || 1)) || ((a.seq ?? 99999) - (b.seq ?? 99999)) || (a.date < b.date ? -1 : 1) || (a.created_at < b.created_at ? -1 : 1));
     const badge = st.state === "due" ? `<span class="badge due">Waktunya maintenance</span>`
@@ -551,7 +562,6 @@ function renderList(){
       ? `<span class="last">✓ Terakhir: ${pretty(st.last.date)}</span>${st.last.seq ? ` · <b>Maintenance ke-${st.last.seq} dari ${totals[m.hospital || H_MAYAPADA] || "?"}</b>` : ""} · berikutnya ${pretty(st.next)} (${st.state === "due" ? "lewat " + st.days + " hari" : st.days + " hari lagi"})`
       : `Belum ada catatan maintenance`;
     const hist = openHistory.has(m.id) ? `<div class="hist">
-      <div class="hinfo"><span>Jam kerja: <b>${m.hours != null ? Number(m.hours).toLocaleString("id-ID") + " jam" : "belum diisi"}</b></span><button class="mini" data-hours="${m.id}">Ubah Jam Kerja</button></div>
       <div class="hinfo"><span>Catatan mesin: <b>${m.note ? esc(m.note) : "—"}</b></span><button class="mini" data-note="${m.id}">Ubah Catatan</button></div>
       ${
       myLogs.length ? myLogs.map(l => `<div class="hrow"><div class="hmain">${l.seq ? `<div class="hseq2">Maintenance ke-${l.seq} dari ${totals[m.hospital || H_MAYAPADA] || "?"}</div>` : ""}<div class="hd">${pretty(l.date)}${l.note ? ` · ${esc(l.note)}` : ""}</div><div class="hnext">Jadwal berikutnya: ${pretty(addDays(l.date, CYCLE_DAYS))}</div></div>${l.seq ? `<button class="seqedit" data-seq="${l.id}">Ubah Nomor</button>` : ""}<button class="del" data-del="${l.id}" title="Hapus catatan ini">✕</button></div>`).join("")
@@ -559,7 +569,7 @@ function renderList(){
     }</div>` : "";
     return `<div class="mcard ${st.state === "due" ? "due" : st.state === "ok" ? "done" : ""}">
       <div class="r1"><div><div class="serial">${esc(m.serial)}</div><div class="model">${esc(m.model)} · Tahun ${m.year ?? "-"} · ${esc(shortH(m.hospital || H_MAYAPADA))}</div></div>${badge}</div>
-      <div class="meta">${lastLine}<br>Jam kerja: ${m.hours != null ? Number(m.hours).toLocaleString("id-ID") + " jam" : "belum diisi"} · ${myLogs.length} catatan</div>
+      <div class="meta">${lastLine}<br>${myLogs.length} catatan</div>
       ${m.note ? `<div class="notebox">📌 ${esc(m.note)}</div>` : ""}
       <div class="acts">
         <button class="primary" data-record="${m.id}">Catat Maintenance</button>
@@ -569,7 +579,35 @@ function renderList(){
       <div id="extra-${m.id}"></div>
       ${hist}
     </div>`;
-  }).join("");
+}
+
+function renderList(){
+  const list = sortedMachines();
+  const wrap = $("machineList");
+  if(!list.length){ wrap.innerHTML = `<div class="panel empty">Tidak ada mesin yang cocok dengan pencarian.</div>`; return; }
+  /* Dua kelompok tipe berdampingan (SWS 6000A | Joyheal, dikelompokkan dari
+     field model di data); di dalam tiap kelompok tetap berlaku pemisahan
+     otomatis Sudah/Belum dari tanggal: maintenance terakhir masih dalam
+     siklus 45 hari (1,5 bulan) masuk "Sudah di-Maintenance"; yang belum
+     pernah atau sudah lewat 45 hari masuk "Belum Maintenance". Dihitung
+     ulang tiap render — tanpa aksi manual, tanpa mengubah data. */
+  const section = (items, kind) => {
+    const head = kind === "due"
+      ? `<div class="colhead due"><h3>Belum Maintenance</h3><span class="count">${items.length}</span></div>`
+      : `<div class="colhead ok"><h3>Sudah di-Maintenance</h3><span class="count">${items.length}</span></div>`;
+    const body = items.length ? items.map(machineCard).join("") : `<div class="panel empty">${kind === "due" ? "Semua mesin sudah di-maintenance ✓" : "Belum ada mesin yang sudah di-maintenance."}</div>`;
+    return `<section>${head}${body}</section>`;
+  };
+  const typeSection = (title, items) => {
+    if(!items.length) return "";
+    const done = items.filter(m => machineStatus(m).state === "ok");
+    const due = items.filter(m => machineStatus(m).state !== "ok");
+    return `<section class="typegroup"><div class="typehead"><h2>${title}</h2><span class="count">${items.length}</span></div>${section(due, "due")}${section(done, "ok")}</section>`;
+  };
+  const sws = list.filter(m => m.model === "SWS-6000A");
+  const joy = list.filter(m => m.model === "JOYHEAL");
+  const other = list.filter(m => m.model !== "SWS-6000A" && m.model !== "JOYHEAL");
+  wrap.innerHTML = `<div class="typecols">${typeSection("SWS 6000A", sws)}${typeSection("Joyheal", joy)}${typeSection("Model Lain", other)}</div>`;
 
   wrap.querySelectorAll("[data-record]").forEach(b => b.addEventListener("click", () => {
     const m = machines.find(x => x.id === b.dataset.record);
@@ -589,7 +627,6 @@ function renderList(){
     }catch(e){ toast("Gagal menghapus: " + e.message); }
   }));
   wrap.querySelectorAll("[data-note]").forEach(b => b.addEventListener("click", () => openNoteForm(b.dataset.note)));
-  wrap.querySelectorAll("[data-hours]").forEach(b => b.addEventListener("click", () => openHoursForm(b.dataset.hours)));
   wrap.querySelectorAll("[data-seq]").forEach(b => b.addEventListener("click", () => openSeqForm(b.dataset.seq)));
   wrap.querySelectorAll("[data-del-machine]").forEach(b => b.addEventListener("click", async () => {
     const m = machines.find(x => x.id === b.dataset.delMachine);
@@ -647,23 +684,6 @@ function openNoteForm(machineId){
     }catch(e){ toast("Gagal menyimpan: " + e.message); }
   });
 }
-function openHoursForm(machineId){
-  const m = machines.find(x => x.id === machineId);
-  const slot = $("extra-" + machineId);
-  slot.innerHTML = `<div class="inlineform">
-    <input type="number" step="0.1" min="0" id="hoursVal-${machineId}" placeholder="Jam kerja mesin saat ini" value="${m.hours ?? ""}">
-    <button class="save" id="hoursSave-${machineId}">Simpan Jam Kerja</button>
-  </div>`;
-  $("hoursVal-" + machineId).focus();
-  $("hoursSave-" + machineId).addEventListener("click", async () => {
-    const raw = $("hoursVal-" + machineId).value;
-    const val = raw === "" ? null : Number(raw);
-    try{
-      await rest(`/machines?id=eq.${machineId}`, {method: "PATCH", body: JSON.stringify({hours: val})});
-      m.hours = val; slot.innerHTML = ""; renderAll(); toast("Jam kerja tersimpan");
-    }catch(e){ toast("Gagal menyimpan: " + e.message); }
-  });
-}
 
 function logsOfHospital(h){
   const ids = new Set(machines.filter(m => (m.hospital || H_MAYAPADA) === h).map(m => m.id));
@@ -711,12 +731,26 @@ document.querySelectorAll("#sidebar .menuitem").forEach(b => b.addEventListener(
   renderAll();
   closeSidebar();
 }));
+document.querySelectorAll("#techChips .techchip").forEach(b => b.addEventListener("click", () => {
+  selectedTech = b.dataset.tech;
+  document.querySelectorAll("#techChips .techchip").forEach(x => x.classList.toggle("active", x === b));
+  updateRecordBtn();
+}));
+function clearTech(){
+  selectedTech = null;
+  document.querySelectorAll("#techChips .techchip").forEach(x => x.classList.remove("active"));
+  updateRecordBtn();
+}
 
 $("recordBtn").addEventListener("click", async () => {
   if(!selectedMachine) return;
+  if(!selectedTech){ toast("Pilih dulu siapa yang mengerjakan: Dena atau Mariyanes"); return; }
   const date = $("dateInput").value || todayJakarta();
-  const note = $("workInput").value.trim();
-  const hoursRaw = $("hoursInput").value;
+  const workNote = $("workInput").value.trim();
+  /* Tidak ada kolom teknisi di tabel maintenance_logs (skema tidak boleh
+     diubah), jadi nama teknisi disimpan sebagai awalan keterangan — tetap
+     tampil di Riwayat karena Riwayat menampilkan isi keterangan. */
+  const note = workNote ? `Oleh ${selectedTech} — ${workNote}` : `Oleh ${selectedTech}`;
   const btn = $("recordBtn"); btn.disabled = true;
   try{
     const hosp = selectedMachine.hospital || H_MAYAPADA;
@@ -733,16 +767,12 @@ $("recordBtn").addEventListener("click", async () => {
     if(!rows || !rows[0]) throw new Error("Simpanan tidak terkonfirmasi gudang");
     logs.unshift(rows[0]);
     logs.sort((a, b) => (b.date + b.created_at) < (a.date + a.created_at) ? -1 : 1);
-    if(hoursRaw !== ""){
-      const h = Number(hoursRaw);
-      await rest(`/machines?id=eq.${selectedMachine.id}`, {method: "PATCH", body: JSON.stringify({hours: h})});
-      selectedMachine.hours = h;
-    }
-    $("workInput").value = ""; $("hoursInput").value = "";
+    $("workInput").value = "";
     renderAll();
     showCelebrate(`${selectedMachine.serial} — Maintenance ke-${seqUse} dari ${ns.total} (${shortH(hosp)})`);
+    clearTech();
   }catch(e){ toast("Gagal mencatat: " + e.message); }
-  btn.disabled = false;
+  updateRecordBtn();
 });
 
 $("addBtn").addEventListener("click", async () => {
