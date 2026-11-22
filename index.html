@@ -17,6 +17,12 @@
     --red:#c0392b; --orange:#f39c2c;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  /* Umpan balik tekan yang jelas di semua tombol (termasuk layar sentuh — bukan hanya :hover) */
+  button{transition:filter .08s ease, transform .08s ease, background-color .12s ease, border-color .12s ease}
+  button:active{filter:brightness(.86); transform:scale(.98)}
+  button:disabled:active{filter:none; transform:none}
+  button:focus-visible{outline:3px solid #5eb2ff; outline-offset:2px}
+  #celebrate:active{filter:brightness(.92)}
   body{margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink)}
   button{font:inherit; cursor:pointer}
   input,select,textarea{font:inherit}
@@ -58,7 +64,7 @@
   .sidebar .menulabel{padding:16px 18px 7px; font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; opacity:.6}
   .sidebar .menuitem{display:flex; align-items:center; gap:11px; width:calc(100% - 16px); margin:3px 8px; padding:12px 13px; border:none; border-left:4px solid transparent; border-radius:10px; background:none; color:#dce6f2; font-size:15px; font-weight:600; text-align:left}
   .sidebar .menuitem .dot{width:9px; height:9px; border-radius:50%; background:rgba(255,255,255,.4); flex:none}
-  .sidebar .menuitem.active{background:rgba(255,255,255,.14); border-left-color:#5eb2ff; color:#fff}
+  .sidebar .menuitem.active{background:rgba(255,255,255,.26); border-left-color:#5eb2ff; color:#fff; font-weight:800}
   .sidebar .menuitem.active .dot{background:#5eb2ff}
   .sidebar .side-sep{height:1px; background:rgba(255,255,255,.16); margin:10px 14px 6px}
   .sidebar .foot{padding:14px 18px; font-size:11.5px; opacity:.55}
@@ -89,6 +95,9 @@
   .warnbox{margin-top:12px; border:1.5px solid var(--amber); background:var(--amberbg); border-radius:11px; padding:11px 13px; font-size:14px; color:#7a5205}
   .btnrec{width:100%; margin-top:16px; padding:14px; border:none; border-radius:11px; background:var(--green); color:#fff; font-weight:700; font-size:15.5px}
   .btnrec:disabled{background:#a9c6b4}
+  .btnrow{display:grid; grid-template-columns:1fr auto; gap:10px; margin-top:16px; align-items:stretch}
+  .btnrow .btnrec{margin-top:0}
+  .btndel{padding:14px 16px; border-radius:11px; border:1.5px solid #e5b4b0; background:#fdf0ef; color:#b3261e; font-weight:700; font-size:15px; cursor:pointer}
   .summary{display:flex; gap:10px; margin-bottom:14px}
   .summary .box{flex:1; background:var(--card); border-radius:13px; padding:12px; text-align:center; box-shadow:0 2px 10px rgba(11,37,69,.07)}
   .summary .box b{display:block; font-size:22px; color:var(--navy)}
@@ -115,6 +124,7 @@
   .toolbar{display:flex; gap:9px; margin-bottom:12px}
   .toolbar input{flex:1; padding:11px 12px; border:1.5px solid var(--line); border-radius:10px; background:#fff}
   .toolbar select{padding:11px 8px; border:1.5px solid var(--line); border-radius:10px; background:#fff}
+  .toolbar input.active, .toolbar select.active{border-color:var(--navy); background:#eef4fb; font-weight:700}
   @media (min-width:861px){ .toolbar{max-width:520px; margin-left:auto} }
   /* ---------- kelompok tipe mesin berdampingan ---------- */
   .typecols{display:grid; grid-template-columns:1fr; gap:18px; align-items:start}
@@ -128,6 +138,14 @@
   .colhead.due .count{background:var(--red)}
   .colhead.ok h3{color:#146c3a}
   .colhead.ok .count{background:var(--green)}
+  /* Judul kolom bisa diklik sebagai filter status (Belum / Sudah) */
+  button.colhead{cursor:pointer; background:none; border:0; padding:4px 6px; width:100%; text-align:left; font:inherit; border-radius:8px}
+  .colhead.active.due{background:#fbd9d7; box-shadow:inset 0 0 0 2px #d92d20}
+  .colhead.active.ok{background:#cdeed6; box-shadow:inset 0 0 0 2px #146c3a}
+  .colhead.active h3{text-decoration:underline}
+  .subcols.single{grid-template-columns:1fr}
+  .filterbar{display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:#eef4fb; border:1px solid #cfe0f2; color:var(--navy); border-radius:10px; padding:8px 10px; margin:0 0 12px; font-size:13.5px}
+  .filterbar button{border:1px solid var(--navy); background:#fff; color:var(--navy); border-radius:999px; padding:4px 10px; font-size:12.5px; font-weight:700; cursor:pointer}
   @media (min-width:861px){ .typecols{grid-template-columns:1fr 1fr} }
   /* ---------- Sudah/Belum berdampingan di dalam tiap kelompok tipe ---------- */
   .subcols{display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:start}
@@ -148,6 +166,7 @@
   .mcard{background:var(--card); border-radius:14px; padding:14px 15px; margin-bottom:11px; box-shadow:0 2px 10px rgba(11,37,69,.07); border-left:6px solid #b9c6d4}
   .mcard.done{border-left-color:var(--green)}
   .mcard.due{border-left-color:var(--red)}
+  .mcard.selected{outline:3px solid var(--navy); outline-offset:2px; background:#eef4fb}
   .mcard .r1{display:flex; align-items:flex-start; gap:9px}
   .mcard .serial{font-weight:800; font-size:16.5px; color:var(--navy); word-break:break-all}
   .mcard .model{font-size:12.5px; color:var(--muted); margin-top:1px}
@@ -304,9 +323,18 @@
         <button type="button" class="techchip" data-tech="Mariyanes">Mariyanes</button>
         <button type="button" class="techchip" data-tech="Gilang">Gilang</button>
       </div>
-      <button class="btnrec" id="recordBtn" type="button" disabled>Sudah Maintenance — Catat</button>
+      <div class="btnrow">
+        <button class="btnrec" id="recordBtn" type="button" disabled>Sudah Maintenance — Catat</button>
+        <button class="btndel" id="deleteBtn" type="button">Hapus Mesin</button>
+      </div>
+      <div id="deleteBox" class="hidden" style="margin-top:10px">
+        <label for="deleteSnInput">Ketik nomor seri mesin yang mau dihapus</label>
+        <input id="deleteSnInput" type="text" autocomplete="off" placeholder="Contoh: JH10239101010A" style="text-transform:uppercase">
+        <button class="btndel" id="deleteConfirmBtn" type="button" style="width:100%; margin-top:10px">Hapus Mesin Ini</button>
+      </div>
     </section>
 
+    <div id="statusFilterBar" class="filterbar hidden">Menampilkan: <b id="statusFilterLabel"></b><button type="button" id="clearStatusFilter">Tampilkan semua ✕</button></div>
     <div id="machineList"></div>
 
     <section class="panel">
@@ -361,6 +389,7 @@ const H_MAYAPADA = "Mayapada Hospital Bogor";
 let activeHospital = ["Mayapada Hospital Bogor", "RS PMI", "RSUD Leuwiliang"].includes(localStorage.getItem("pelacak_hospital")) ? localStorage.getItem("pelacak_hospital") : H_MAYAPADA;
 let totals = {"Mayapada Hospital Bogor": 11, "RS PMI": 49, "RSUD Leuwiliang": 28}; // total mesin per RS, bisa diubah dari halaman Ronde
 let view = "home";       // tampilan aktif: "home" (beranda bergambar) / "dash" (tampilan normal)
+let statusFilter = null; // filter status daftar: null (semua) | "due" (hanya Belum) | "ok" (hanya Sudah) — diubah lewat klik judul kolom
 function shortH(h){ return h === H_MAYAPADA ? "Mayapada" : h; }
 function inHospital(m){ return !activeHospital || (m.hospital || H_MAYAPADA) === activeHospital; }
 function syncHospitalTabs(){
@@ -523,7 +552,7 @@ function renderSuggestions(){
     box.appendChild(b);
   });
   const exact = machines.find(m => inHospital(m) && m.serial.toUpperCase() === q);
-  if(exact) pickMachine(exact, true); else { selectedMachine = null; renderRecog(); }
+  if(exact) pickMachine(exact, true); else { selectedMachine = null; renderRecog(); renderList(); }
   updateRecordBtn();
 }
 function pickMachine(m, silent){
@@ -532,6 +561,7 @@ function pickMachine(m, silent){
   renderSuggestionsListOnly();
   renderRecog();
   updateRecordBtn();
+  renderList();
   if(!silent) toast("Mesin dikenali: " + m.serial);
 }
 function renderSuggestionsListOnly(){
@@ -606,23 +636,37 @@ function machineCard(m){
       myLogs.length ? myLogs.map(l => `<div class="hrow"><div class="hmain">${l.seq ? `<div class="hseq2">Maintenance ke-${l.seq} dari ${totals[m.hospital || H_MAYAPADA] || "?"}</div>` : ""}<div class="hd">${pretty(l.date)}${l.note ? ` · ${esc(l.note)}` : ""}</div><div class="hnext">Jadwal berikutnya: ${pretty(addDays(l.date, CYCLE_DAYS))}</div></div>${l.seq ? `<button class="seqedit" data-seq="${l.id}">Ubah Nomor</button>` : ""}<button class="del" data-del="${l.id}" title="Hapus catatan ini">✕</button></div>`).join("")
       : `<div class="hrow"><span class="hn">Belum ada riwayat.</span></div>`
     }</div>` : "";
-    return `<div class="mcard ${st.state === "due" ? "due" : st.state === "ok" ? "done" : ""}">
+    return `<div class="mcard ${st.state === "due" ? "due" : st.state === "ok" ? "done" : ""}${selectedMachine && selectedMachine.id === m.id ? " selected" : ""}">
       <div class="r1"><div><div class="serial">${esc(m.serial)}</div><div class="model">${esc(m.model)} · Tahun ${m.year ?? "-"} · ${esc(shortH(m.hospital || H_MAYAPADA))}</div></div>${badge}</div>
       <div class="meta">${lastLine}<br>${myLogs.length} catatan</div>
       ${m.note ? `<div class="notebox">📌 ${esc(m.note)}</div>` : ""}
       <div class="acts">
         <button class="primary" data-record="${m.id}">Catat Maintenance</button>
         <button data-hist="${m.id}">${openHistory.has(m.id) ? "Tutup Riwayat" : "Riwayat"}</button>
-        <button class="danger" data-del-machine="${m.id}">Hapus Mesin</button>
       </div>
       <div id="extra-${m.id}"></div>
       ${hist}
     </div>`;
 }
 
+/* Penanda filter yang sedang aktif di toolbar (pencarian / model). */
+function updateFilterMarks(){
+  $("modelFilter").classList.toggle("active", !!$("modelFilter").value);
+  $("searchInput").classList.toggle("active", !!$("searchInput").value.trim());
+}
+
+/* Bar penanda filter status di atas daftar (hanya tampil saat filter menyala). */
+function updateStatusFilterBar(){
+  const bar = $("statusFilterBar");
+  bar.classList.toggle("hidden", !statusFilter);
+  $("statusFilterLabel").textContent = statusFilter === "due" ? "Belum Maintenance" : statusFilter === "ok" ? "Sudah di-Maintenance" : "";
+}
+
 function renderList(){
   const list = sortedMachines();
   const wrap = $("machineList");
+  updateStatusFilterBar();
+  updateFilterMarks();
   if(!list.length){ wrap.innerHTML = `<div class="panel empty">Tidak ada mesin yang cocok dengan pencarian.</div>`; return; }
   /* Dua kelompok tipe berdampingan (SWS 6000A | Joyheal, dikelompokkan dari
      field model di data); di dalam tiap kelompok, Belum dan Sudah tampil
@@ -630,11 +674,16 @@ function renderList(){
      tanggal: maintenance terakhir masih dalam
      siklus 45 hari (1,5 bulan) masuk "Sudah di-Maintenance"; yang belum
      pernah atau sudah lewat 45 hari masuk "Belum Maintenance". Dihitung
-     ulang tiap render — tanpa aksi manual, tanpa mengubah data. */
+     ulang tiap render — tanpa aksi manual, tanpa mengubah data.
+     Judul kolom bisa DIKLIK sebagai filter: klik "Belum Maintenance"
+     hanya menampilkan mesin Belum di semua kelompok tipe, klik
+     "Sudah di-Maintenance" hanya menampilkan mesin Sudah; klik lagi
+     judul yang sedang aktif (atau "Tampilkan semua") mengembalikan
+     kedua kolom. */
   const section = (items, kind) => {
     const head = kind === "due"
-      ? `<div class="colhead due"><h3>Belum Maintenance</h3><span class="count">${items.length}</span></div>`
-      : `<div class="colhead ok"><h3>Sudah di-Maintenance</h3><span class="count">${items.length}</span></div>`;
+      ? `<button type="button" class="colhead due${statusFilter === "due" ? " active" : ""}" data-status="due" aria-pressed="${statusFilter === "due"}" title="Ketuk untuk menampilkan hanya mesin yang belum di-maintenance"><h3>Belum Maintenance</h3><span class="count">${items.length}</span></button>`
+      : `<button type="button" class="colhead ok${statusFilter === "ok" ? " active" : ""}" data-status="ok" aria-pressed="${statusFilter === "ok"}" title="Ketuk untuk menampilkan hanya mesin yang sudah di-maintenance"><h3>Sudah di-Maintenance</h3><span class="count">${items.length}</span></button>`;
     const body = items.length ? items.map(machineCard).join("") : `<div class="panel empty">${kind === "due" ? "Semua mesin sudah di-maintenance ✓" : "Belum ada mesin yang sudah di-maintenance."}</div>`;
     return `<section>${head}${body}</section>`;
   };
@@ -642,12 +691,27 @@ function renderList(){
     if(!items.length) return "";
     const done = items.filter(m => machineStatus(m).state === "ok");
     const due = items.filter(m => machineStatus(m).state !== "ok");
-    return `<section class="typegroup"><div class="typehead"><h2>${title}</h2><span class="count">${items.length}</span></div><div class="subcols">${section(due, "due")}${section(done, "ok")}</div></section>`;
+    const shown = statusFilter === "due" ? due : statusFilter === "ok" ? done : items;
+    if(!shown.length) return "";
+    const secs = [];
+    if(statusFilter !== "ok") secs.push(section(due, "due"));
+    if(statusFilter !== "due") secs.push(section(done, "ok"));
+    return `<section class="typegroup"><div class="typehead"><h2>${title}</h2><span class="count">${shown.length}</span></div><div class="subcols${secs.length === 1 ? " single" : ""}">${secs.join("")}</div></section>`;
   };
   const sws = list.filter(m => m.model === "SWS-6000A");
   const joy = list.filter(m => m.model === "JOYHEAL");
   const other = list.filter(m => m.model !== "SWS-6000A" && m.model !== "JOYHEAL");
-  wrap.innerHTML = `<div class="typecols">${typeSection("SWS 6000A", sws)}${typeSection("Joyheal", joy)}${typeSection("Model Lain", other)}</div>`;
+  const inner = `${typeSection("SWS 6000A", sws)}${typeSection("Joyheal", joy)}${typeSection("Model Lain", other)}`;
+  wrap.innerHTML = inner.trim()
+    ? `<div class="typecols">${inner}</div>`
+    : `<div class="panel empty">${statusFilter === "due" ? "Tidak ada mesin yang belum di-maintenance di sini." : statusFilter === "ok" ? "Tidak ada mesin yang sudah di-maintenance di sini." : "Tidak ada mesin yang cocok dengan pencarian."}</div>`;
+
+  /* Klik judul kolom = filter status (klik lagi judul yang aktif = kembali ke kedua kolom). */
+  wrap.querySelectorAll("[data-status]").forEach(b => b.addEventListener("click", () => {
+    const k = b.dataset.status;
+    statusFilter = (statusFilter === k) ? null : k;
+    renderList();
+  }));
 
   wrap.querySelectorAll("[data-record]").forEach(b => b.addEventListener("click", () => {
     const m = machines.find(x => x.id === b.dataset.record);
@@ -668,22 +732,6 @@ function renderList(){
   }));
   wrap.querySelectorAll("[data-note]").forEach(b => b.addEventListener("click", () => openNoteForm(b.dataset.note)));
   wrap.querySelectorAll("[data-seq]").forEach(b => b.addEventListener("click", () => openSeqForm(b.dataset.seq)));
-  wrap.querySelectorAll("[data-del-machine]").forEach(b => b.addEventListener("click", async () => {
-    const m = machines.find(x => x.id === b.dataset.delMachine);
-    if(!m) return;
-    const n = logsOf(m.id).length;
-    const pesan = `Hapus mesin ${m.serial} (${m.hospital || H_MAYAPADA})?`
-      + (n ? `\n\n${n} catatan riwayatnya ikut terhapus permanen.` : "\n\nMesin ini belum punya catatan riwayat.")
-      + "\n\nTindakan ini tidak bisa dibatalkan.";
-    if(!confirm(pesan)) return;
-    try{
-      await rest(`/machines?id=eq.${m.id}`, {method: "DELETE"});
-      machines = machines.filter(x => x.id !== m.id);
-      logs = logs.filter(l => l.machine_id !== m.id);
-      if(selectedMachine && selectedMachine.id === m.id){ selectedMachine = null; $("snInput").value = ""; }
-      renderAll(); toast("Mesin " + m.serial + " dihapus");
-    }catch(e){ toast("Gagal menghapus mesin: " + e.message); }
-  }));
 }
 
 function openSeqForm(logId){
@@ -747,6 +795,7 @@ function renderAll(){
   if(view === "home"){
     $("hdrHospital").textContent = "Beranda";
     document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
+    $("homeMenuBtn").classList.add("active");
   }
 }
 
@@ -758,6 +807,7 @@ function showView(v){
   if(v === "home"){
     $("hdrHospital").textContent = "Beranda";
     document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
+    $("homeMenuBtn").classList.add("active");
   } else {
     syncHospitalTabs();
   }
@@ -786,6 +836,7 @@ $("celebrate").addEventListener("click", () => $("celebrate").classList.remove("
 $("snInput").addEventListener("input", renderSuggestions);
 $("searchInput").addEventListener("input", renderList);
 $("modelFilter").addEventListener("change", renderList);
+$("clearStatusFilter").addEventListener("click", () => { statusFilter = null; renderList(); });
 function openSidebar(){ $("sidebar").classList.add("open"); $("scrim").classList.add("show"); }
 function closeSidebar(){ $("sidebar").classList.remove("open"); $("scrim").classList.remove("show"); }
 $("menuBtn").addEventListener("click", () => {
@@ -845,6 +896,35 @@ $("recordBtn").addEventListener("click", async () => {
     clearTech();
   }catch(e){ toast("Gagal mencatat: " + e.message); }
   updateRecordBtn();
+});
+
+/* ---------- hapus mesin lewat ketik nomor seri (tombol di samping Catat) ---------- */
+$("deleteBtn").addEventListener("click", () => {
+  const box = $("deleteBox");
+  box.classList.toggle("hidden");
+  if(!box.classList.contains("hidden")) $("deleteSnInput").focus();
+});
+$("deleteConfirmBtn").addEventListener("click", async () => {
+  const typed = $("deleteSnInput").value.trim().toUpperCase();
+  if(!typed){ toast("Ketik dulu nomor seri mesin yang mau dihapus"); return; }
+  const m = machines.find(x => x.serial.toUpperCase() === typed && (x.hospital || H_MAYAPADA) === activeHospital);
+  if(!m){ toast(`Nomor seri tidak ditemukan di ${shortH(activeHospital)} ini`); return; }
+  const n = logsOf(m.id).length;
+  const pesan = `Hapus mesin ${m.serial} (${m.hospital || H_MAYAPADA})?`
+    + (n ? `\n\n${n} catatan riwayatnya ikut terhapus permanen.` : "\n\nMesin ini belum punya catatan riwayat.")
+    + "\n\nTindakan ini tidak bisa dibatalkan.";
+  if(!confirm(pesan)) return;
+  const btn = $("deleteConfirmBtn"); btn.disabled = true;
+  try{
+    await rest(`/machines?id=eq.${m.id}`, {method: "DELETE"});
+    machines = machines.filter(x => x.id !== m.id);
+    logs = logs.filter(l => l.machine_id !== m.id);
+    if(selectedMachine && selectedMachine.id === m.id){ selectedMachine = null; $("snInput").value = ""; }
+    $("deleteSnInput").value = "";
+    $("deleteBox").classList.add("hidden");
+    renderAll(); toast("Mesin " + m.serial + " dihapus");
+  }catch(e){ toast("Gagal menghapus: " + e.message); }
+  btn.disabled = false;
 });
 
 $("addBtn").addEventListener("click", async () => {
