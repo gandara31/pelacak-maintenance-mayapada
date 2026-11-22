@@ -76,6 +76,7 @@
   main{max-width:640px; margin:0 auto; padding:16px 14px 60px}
   .panel{background:var(--card); border-radius:14px; padding:16px; box-shadow:0 2px 10px rgba(11,37,69,.07); margin-bottom:14px}
   .panel h2{margin:0 0 4px; font-size:16px; color:var(--navy)}
+  #recordPanel{scroll-margin-top:72px}
   .panel p.hint{margin:0 0 12px; font-size:13px; color:var(--muted)}
   .panel label{display:block; font-size:13px; font-weight:600; margin:12px 0 6px; color:var(--navy)}
   .panel input,.panel select,.panel textarea{width:100%; padding:11px 12px; border:1.5px solid var(--line); border-radius:10px; background:#fbfcfe}
@@ -167,6 +168,20 @@
   .celebrate .ctitle{font-size:23px; font-weight:800; color:var(--navy); margin-top:2px}
   .celebrate .ctext{color:var(--muted); font-size:14.5px; margin-top:5px}
   @keyframes cpop{0%{transform:scale(.6); opacity:0} 70%{transform:scale(1.06)} 100%{transform:scale(1); opacity:1}}
+  /* ---------- tampilan awal (beranda bergambar) ---------- */
+  #homeView{max-width:640px; margin:0 auto; padding:16px 14px 60px}
+  .homehero{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px}
+  .homecard{background:var(--card); border:1.5px solid var(--line); border-radius:14px; padding:10px 10px 12px; box-shadow:0 2px 10px rgba(11,37,69,.07); cursor:pointer; text-align:center}
+  .homecard img{width:100%; height:190px; object-fit:contain; background:#fff; border-radius:9px; display:block}
+  .homecard b{display:block; margin-top:9px; font-size:16px; color:var(--navy)}
+  .homecard span{display:block; font-size:12.5px; color:var(--muted); margin-top:1px}
+  .homecard:active{border-color:var(--navy2)}
+  .homedone{cursor:pointer}
+  .homerow{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:9px 10px; border:1px solid var(--line); border-radius:10px; margin-bottom:7px; background:#fff}
+  .homerow .s{font-weight:700; color:var(--navy); word-break:break-all}
+  .homerow .d{color:var(--muted); font-size:12.5px; text-align:right; white-space:nowrap}
+  .filterbar{display:flex; align-items:center; gap:9px; background:var(--greenbg); border:1.5px solid var(--green); color:#146c3a; border-radius:10px; padding:10px 12px; margin-bottom:12px; font-size:14px}
+  .filterbar button{margin-left:auto; border:none; background:var(--navy); color:#fff; border-radius:8px; padding:7px 11px; font-weight:700; font-size:13px; white-space:nowrap}
 </style>
 </head>
 <body>
@@ -216,6 +231,7 @@
       <img src="icon-192.png" alt="">
       <div><b>Pelacak Maintenance</b><span>Mesin hemodialisa</span></div>
     </div>
+    <button type="button" class="menuitem" id="homeMenuBtn"><span class="dot"></span>Beranda</button>
     <div class="menulabel">Rumah Sakit</div>
     <button type="button" class="menuitem active" data-h="Mayapada Hospital Bogor"><span class="dot"></span>RS Mayapada</button>
     <button type="button" class="menuitem" data-h="RS PMI"><span class="dot"></span>RS PMI</button>
@@ -232,14 +248,33 @@
     <div class="t"><b>Pelacak Maintenance</b><span id="hdrHospital">Mayapada Hospital Bogor</span></div>
     <button id="logoutBtn" type="button">Keluar</button>
   </header>
-  <main>
+  <div id="homeView" class="hidden">
+    <div class="homehero">
+      <button type="button" class="homecard" id="homeSws">
+        <img src="mesin-sws-6000a.jpg" alt="Mesin hemodialisa SWS 6000A">
+        <b>SWS 6000A</b><span>Ketuk untuk lihat mesin SWS</span>
+      </button>
+      <button type="button" class="homecard" id="homeJoy">
+        <img src="mesin-joyheal.jpg" alt="Mesin hemodialisa Joyheal">
+        <b>Joyheal</b><span>Ketuk untuk lihat mesin Joyheal</span>
+      </button>
+    </div>
+    <section class="panel homedone" id="homeDonePanel">
+      <div class="colhead ok"><h3>Sudah di-Maintenance</h3><span class="count" id="homeDoneCount">0</span></div>
+      <p class="hint">Mesin yang maintenance terakhirnya masih dalam 1,5 bulan (45 hari). Ketuk kolom ini untuk melihat semuanya.</p>
+      <div id="homeDoneList"></div>
+      <button type="button" class="btnmain" id="homeDoneBtn" style="margin-top:6px">Lihat Mesin yang Sudah di-Maintenance</button>
+    </section>
+  </div>
+  <main id="dashMain">
     <div class="summary">
       <div class="box"><b id="sumTotal">0</b><span>Mesin terpantau</span></div>
       <div class="box due"><b id="sumDue">0</b><span>Waktunya maintenance</span></div>
       <div class="box"><b id="sumLogs">0</b><span>Catatan riwayat</span></div>
     </div>
 
-    <section class="panel">
+
+    <section class="panel" id="recordPanel">
       <h2>Catat Maintenance</h2>
       <p class="hint">Ketik nomor seri mesin — saran mesin muncul sambil kamu mengetik. Tanggal terisi otomatis hari ini, bisa diubah kalau catatnya terlambat.</p>
       <label for="snInput">Nomor Seri Mesin</label>
@@ -267,6 +302,7 @@
       </div>
       <button class="btnrec" id="recordBtn" type="button" disabled>Sudah Maintenance — Catat</button>
     </section>
+    <div id="statusFilterBar" class="filterbar hidden">Menampilkan: <b>Sudah di-Maintenance</b><button type="button" id="clearStatusFilter">Tampilkan semua ✕</button></div>
 
     <div class="toolbar">
       <input id="searchInput" type="text" placeholder="Cari nomor seri...">
@@ -329,6 +365,8 @@ let openHistory = new Set(); // kartu yang riwayatnya sedang dibuka
 const H_MAYAPADA = "Mayapada Hospital Bogor";
 let activeHospital = localStorage.getItem("pelacak_hospital") === "RS PMI" ? "RS PMI" : H_MAYAPADA;
 let totals = {"Mayapada Hospital Bogor": 11, "RS PMI": 49}; // total mesin per RS, bisa diubah dari halaman Ronde
+let view = "home";       // tampilan aktif: "home" (beranda bergambar) / "dash" (tampilan normal)
+let statusFilter = null; // null = semua mesin; "ok" = hanya yang sudah di-maintenance (45 hari)
 function shortH(h){ return h === "RS PMI" ? "RS PMI" : "Mayapada"; }
 function inHospital(m){ return !activeHospital || (m.hospital || H_MAYAPADA) === activeHospital; }
 function syncHospitalTabs(){
@@ -459,6 +497,7 @@ function toast(text){
 function showScreen(name){
   $("authScreen").classList.toggle("hidden", name !== "auth");
   $("appScreen").classList.toggle("hidden", name !== "app");
+  if(name === "app"){ showView("home"); }
   if(name === "auth"){
     $("loginForm").classList.remove("hidden");
     $("recoverForm").classList.add("hidden");
@@ -542,7 +581,8 @@ function sortedMachines(){
   const q = $("searchInput").value.trim().toUpperCase();
   const f = $("modelFilter").value;
   let list = machines.filter(m =>
-    inHospital(m) && (!q || m.serial.toUpperCase().includes(q)) && (!f || m.model === f));
+    inHospital(m) && (!q || m.serial.toUpperCase().includes(q)) && (!f || m.model === f)
+    && (statusFilter !== "ok" || machineStatus(m).state === "ok"));
   const rank = (m) => { const s = machineStatus(m).state; return s === "due" ? 0 : s === "new" ? 1 : 2; };
   const seqOf = (m) => { const l = lastLog(m.id); return l && l.seq != null ? l.seq : Infinity; };
   list.sort((a, b) => {
@@ -617,7 +657,7 @@ function renderList(){
 
   wrap.querySelectorAll("[data-record]").forEach(b => b.addEventListener("click", () => {
     const m = machines.find(x => x.id === b.dataset.record);
-    if(m){ pickMachine(m); window.scrollTo({top: 0, behavior: "smooth"}); }
+    if(m){ pickMachine(m); $("recordPanel").scrollIntoView({behavior: "smooth", block: "start"}); }
   }));
   wrap.querySelectorAll("[data-hist]").forEach(b => b.addEventListener("click", () => {
     const id = b.dataset.hist;
@@ -708,7 +748,57 @@ function nextSeqInfo(h){
   if(last.seq >= total) return {seq: 1, round: (last.round || 1) + 1, total};
   return {seq: last.seq + 1, round: last.round || 1, total};
 }
-function renderAll(){ syncHospitalTabs(); renderSummary(); renderList(); renderRecog(); }
+function renderAll(){
+  syncHospitalTabs(); renderSummary(); renderList(); renderRecog(); renderHome();
+  $("statusFilterBar").classList.toggle("hidden", statusFilter !== "ok");
+  if(view === "home"){
+    $("hdrHospital").textContent = "Beranda";
+    document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
+  }
+}
+
+/* ---------------- tampilan awal (beranda bergambar) ---------------- */
+/* Kolom "Sudah di-Maintenance" memakai aturan 45 hari yang SAMA persis
+   dengan daftar (CYCLE_DAYS = 45 / machineStatus): maintenance terakhir
+   <= 45 hari lalu = Sudah; > 45 hari lalu atau belum pernah = Belum.
+   Tepat 45 hari masih Sudah, 46 hari baru pindah ke Belum. Dihitung
+   ulang tiap render — tanpa aksi manual, tanpa mengubah data. */
+function renderHome(){
+  const done = machines.filter(m => machineStatus(m).state === "ok")
+    .sort((a, b) => {
+      const da = machineStatus(a).last.date, db = machineStatus(b).last.date;
+      return db < da ? -1 : db > da ? 1 : (a.serial < b.serial ? -1 : 1);
+    });
+  $("homeDoneCount").textContent = done.length;
+  const box = $("homeDoneList");
+  if(!done.length){ box.innerHTML = `<div class="empty">Belum ada mesin yang sudah di-maintenance.</div>`; return; }
+  box.innerHTML = done.map(m => {
+    const st = machineStatus(m);
+    return `<div class="homerow"><span class="s">${esc(m.serial)}</span><span class="d">${esc(shortH(m.hospital || H_MAYAPADA))} · terakhir ${pretty(st.last.date)}</span></div>`;
+  }).join("");
+}
+function showView(v){
+  view = v;
+  $("homeView").classList.toggle("hidden", v !== "home");
+  $("dashMain").classList.toggle("hidden", v !== "dash");
+  if(v === "home"){
+    renderHome();
+    $("hdrHospital").textContent = "Beranda";
+    document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
+  } else {
+    syncHospitalTabs();
+  }
+  window.scrollTo(0, 0);
+}
+function goDash(opts = {}){
+  if(opts.hospital){ activeHospital = opts.hospital; localStorage.setItem("pelacak_hospital", activeHospital); }
+  $("modelFilter").value = opts.model || "";
+  $("searchInput").value = "";
+  statusFilter = opts.status || null;
+  showView("dash");
+  renderAll();
+  window.scrollTo(0, 0);
+}
 
 let celebrateTimer = null;
 function showCelebrate(text){
@@ -732,13 +822,18 @@ $("menuBtn").addEventListener("click", () => {
 $("scrim").addEventListener("click", closeSidebar);
 document.addEventListener("keydown", (ev) => { if(ev.key === "Escape") closeSidebar(); });
 document.querySelectorAll("#sidebar .menuitem[data-h]").forEach(b => b.addEventListener("click", () => {
-  activeHospital = b.dataset.h;
-  localStorage.setItem("pelacak_hospital", activeHospital);
-  renderAll();
+  goDash({hospital: b.dataset.h});
   closeSidebar();
 }));
 /* Logout dari sidebar memakai tombol Keluar yang sama persis — tanpa logika logout baru. */
 $("logoutMenuBtn").addEventListener("click", () => { closeSidebar(); $("logoutBtn").click(); });
+/* ---------- tampilan awal (beranda bergambar) ---------- */
+$("homeMenuBtn").addEventListener("click", () => { showView("home"); renderAll(); closeSidebar(); });
+$("homeSws").addEventListener("click", () => goDash({model: "SWS-6000A"}));
+$("homeJoy").addEventListener("click", () => goDash({model: "JOYHEAL"}));
+$("homeDoneBtn").addEventListener("click", () => goDash({status: "ok"}));
+$("homeDonePanel").addEventListener("click", (ev) => { if(ev.target && ev.target.closest && ev.target.closest("#homeDoneBtn")) return; goDash({status: "ok"}); });
+$("clearStatusFilter").addEventListener("click", () => { statusFilter = null; renderAll(); });
 document.querySelectorAll("#techChips .techchip").forEach(b => b.addEventListener("click", () => {
   selectedTech = b.dataset.tech;
   document.querySelectorAll("#techChips .techchip").forEach(x => x.classList.toggle("active", x === b));
