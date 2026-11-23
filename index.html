@@ -75,6 +75,13 @@
   .sidebar .menuitem .dot{width:9px; height:9px; border-radius:50%; background:rgba(255,255,255,.4); flex:none}
   .sidebar .menuitem.active{background:rgba(255,255,255,.26); border-left-color:#5eb2ff; color:#fff; font-weight:800}
   .sidebar .menuitem.active .dot{background:#5eb2ff}
+  /* Submenu Penyimpanan File: bersarang di bawah induknya, menjorok ke kanan.
+     Chevron "›" menunjuk ke bawah saat submenu terbuka. */
+  .sidebar .menuitem .chev{margin-left:auto; font-size:18px; line-height:1; transition:transform .2s ease}
+  .sidebar .menuitem[aria-expanded="true"] .chev{transform:rotate(90deg)}
+  .sidebar .submenu{overflow:hidden}
+  .sidebar .submenu .menuitem{padding:10px 13px 10px 30px; font-size:14px}
+  .sidebar .submenu .menuitem .count{margin-left:auto; font-size:12px; font-weight:600; opacity:.75; white-space:nowrap}
   .sidebar .side-sep{height:1px; background:rgba(255,255,255,.16); margin:10px 14px 6px}
   .sidebar .foot{padding:14px 18px; font-size:11.5px; opacity:.55}
   .scrim{position:fixed; inset:0; background:rgba(6,25,48,.5); z-index:30; display:none}
@@ -321,10 +328,12 @@
     <button type="button" class="menuitem active" data-h="Mayapada Hospital Bogor"><span class="dot"></span>RS Mayapada</button>
     <button type="button" class="menuitem" data-h="RS PMI"><span class="dot"></span>RS PMI</button>
     <button type="button" class="menuitem" data-h="RSUD Leuwiliang"><span class="dot"></span>RSUD Leuwiliang</button>
+    <div class="side-sep"></div>
+    <button type="button" class="menuitem" id="addMenuBtn"><span class="dot"></span>Tambah Mesin</button>
     <button type="button" class="menuitem" id="deletedMenuBtn"><span class="dot"></span>Riwayat Dihapus</button>
     <button type="button" class="menuitem" id="addedMenuBtn"><span class="dot"></span>Riwayat Tambah</button>
-    <button type="button" class="menuitem" id="filesMenuBtn"><span class="dot"></span>Penyimpanan File</button>
-    <button type="button" class="menuitem" id="addMenuBtn"><span class="dot"></span>Tambah Mesin</button>
+    <button type="button" class="menuitem" id="filesMenuBtn" aria-expanded="false" aria-controls="filesSubmenu"><span class="dot"></span>Penyimpanan File<span class="chev">›</span></button>
+    <div class="submenu hidden" id="filesSubmenu"></div>
     <div class="side-sep"></div>
     <button type="button" class="menuitem" id="logoutMenuBtn"><span class="dot"></span>Logout</button>
     <div class="foot">Pencatat maintenance mesin hemodialisa</div>
@@ -504,13 +513,15 @@ const VIEW_KEY = "pelacak_view";
 const VIEW_NAMES = ["home", "dash", "add", "deleted", "added", "files"];
 const HOSPITALS = ["Mayapada Hospital Bogor", "RS PMI", "RSUD Leuwiliang"];
 function saveView(){
-  try{ localStorage.setItem(VIEW_KEY, JSON.stringify({view, hospital: activeHospital, model: modelFilterVal, status: statusFilter})); }catch(e){}
+  try{ localStorage.setItem(VIEW_KEY, JSON.stringify({view, hospital: activeHospital, model: modelFilterVal, status: statusFilter, filesHospital: (view === "files" ? filesHospital : "")})); }catch(e){}
 }
 function restoreView(){
   let saved = null;
   try{ saved = JSON.parse(localStorage.getItem(VIEW_KEY) || "null"); }catch(e){ saved = null; }
   if(!saved || !VIEW_NAMES.includes(saved.view)){ showView("home"); return; }
   if(HOSPITALS.includes(saved.hospital)) activeHospital = saved.hospital;
+  if(HOSPITALS.includes(saved.filesHospital)) filesHospital = saved.filesHospital; // pulihkan RS yang sedang dibuka di Penyimpanan File
+  else filesHospital = ""; // daftar kartu: pastikan tidak tertinggal RS dari tampilan sebelumnya
   modelFilterVal = ["", "JOYHEAL", "SWS-6000A"].includes(saved.model) ? saved.model : "";
   statusFilter = (saved.status === "ok") ? "ok" : "due";
   try{ localStorage.setItem("pelacak_hospital", activeHospital); }catch(e){}
@@ -736,6 +747,11 @@ async function loadData(){
       }
     });
   }catch(e){ /* total bawaan dipakai bila gudang pengaturan tak terbaca */ }
+  // Daftar file dimuat sejak awal (bukan hanya saat membuka Penyimpanan File),
+  // supaya jumlah file per RS di submenu menu selalu benar dan refresh ke
+  // tampilan file langsung menampilkan isinya.
+  try{ appFiles = await rest("/app_files?select=id,hospital,name,mime,size,uploaded_at,uploaded_by&order=uploaded_at.desc"); }
+  catch(e){ appFiles = []; }
   renderAll();
 }
 function logsOf(machineId){ return logs.filter(l => l.machine_id === machineId); }
@@ -1075,6 +1091,7 @@ function renderFiles(){
       card.addEventListener("keydown", (ev) => { if(ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); open(); } });
       home.appendChild(card);
     });
+    syncFilesSubmenu();
     return;
   }
   home.classList.add("hidden");
@@ -1108,6 +1125,46 @@ function renderFiles(){
     });
     box.appendChild(card);
   });
+  syncFilesSubmenu();
+}
+/* ---------- submenu Penyimpanan File di menu samping ----------
+   Ketuk "Penyimpanan File": submenu 3 RS terbuka (dan tampilan kartu 3 RS
+   terbuka). Ketuk RS di submenu: langsung ke daftar file RS itu dan drawer
+   menutup seperti menu lain. Ketuk "Penyimpanan File" lagi saat submenu
+   terbuka: submenu menutup, tampilan tetap. Selama di tampilan file apa pun,
+   submenu tetap terbuka dengan RS yang aktif ditandai; pindah ke tampilan
+   lain: submenu menutup. */
+let filesSubUserClosed = false; // pengguna menutup submenu secara manual saat masih di tampilan file
+function buildFilesSubmenu(){
+  const sub = $("filesSubmenu");
+  if(!sub) return;
+  sub.innerHTML = "";
+  HOSPITALS.forEach(h => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "menuitem subitem";
+    b.dataset.fh = h;
+    const label = h === H_MAYAPADA ? "RS Mayapada" : h;
+    b.innerHTML = `<span class="dot"></span><span class="lbl">${esc(label)}</span><span class="count">0 file</span>`;
+    b.addEventListener("click", () => {
+      filesSubUserClosed = false;
+      navigateTo({view:"files", filesHospital: h});
+      closeSidebar();
+    });
+    sub.appendChild(b);
+  });
+}
+function syncFilesSubmenu(){
+  const sub = $("filesSubmenu"), parent = $("filesMenuBtn");
+  if(!sub || !parent) return;
+  HOSPITALS.forEach(h => {
+    const c = sub.querySelector('[data-fh="' + h + '"] .count');
+    if(c) c.textContent = filesOfHospital(h).length + " file";
+  });
+  const open = (view === "files") && !filesSubUserClosed;
+  sub.classList.toggle("hidden", !open);
+  parent.setAttribute("aria-expanded", open ? "true" : "false");
+  sub.querySelectorAll(".menuitem").forEach(b => b.classList.toggle("active", view === "files" && b.dataset.fh === filesHospital));
 }
 /* ---------- pratinjau file: gambar tampil di aplikasi, PDF dibuka di tab baru, jenis lain info file ---------- */
 // Blob URL segar untuk membuka PDF di tab baru. Dibebaskan setelah 60 detik —
@@ -1475,6 +1532,7 @@ function nextSeqInfo(h){
 }
 function renderAll(){
   syncHospitalTabs(); renderSummary(); renderList(); renderRecog();
+  syncFilesSubmenu(); // jumlah file per RS di submenu selalu mengikuti data terbaru
   if(view === "home"){
     $("hdrHospital").textContent = "Beranda";
     document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
@@ -1504,6 +1562,7 @@ function renderAll(){
 /* ---------------- tampilan awal (beranda bergambar) ---------------- */
 function showView(v){
   view = v;
+  if(v === "files") filesSubUserClosed = false; // masuk/kembali ke tampilan file: submenu terbuka lagi
   $("homeView").classList.toggle("hidden", v !== "home");
   $("dashMain").classList.toggle("hidden", v !== "dash");
   $("addMain").classList.toggle("hidden", v !== "add");
@@ -1537,6 +1596,7 @@ function showView(v){
   } else {
     syncHospitalTabs();
   }
+  syncFilesSubmenu();
   saveView();
   window.scrollTo(0, 0);
 }
@@ -1715,7 +1775,20 @@ $("homeMenuBtn").addEventListener("click", () => { navigateTo({view:"home"}); cl
 $("addMenuBtn").addEventListener("click", () => { navigateTo({view:"add"}); closeSidebar(); });
 $("deletedMenuBtn").addEventListener("click", () => { navigateTo({view:"deleted"}); closeSidebar(); });
 $("addedMenuBtn").addEventListener("click", () => { navigateTo({view:"added"}); closeSidebar(); });
-$("filesMenuBtn").addEventListener("click", () => { navigateTo({view:"files", filesHospital:""}); closeSidebar(); });
+buildFilesSubmenu(); // isi submenu 3 RS sekali saat aplikasi dimuat
+$("filesMenuBtn").addEventListener("click", () => {
+  // Drawer SENGAJA tidak ditutup di sini — submenu ada di dalam drawer,
+  // jadi drawer harus tetap terbuka supaya 3 pilihan RS terlihat.
+  if(view === "files" && !filesSubUserClosed){
+    filesSubUserClosed = true; // submenu sedang terbuka: tutup saja, tampilan tetap
+    syncFilesSubmenu();
+    return;
+  }
+  filesSubUserClosed = false;
+  if(view === "files"){ syncFilesSubmenu(); return; } // sudah di tampilan file: buka submenu saja
+  navigateTo({view:"files", filesHospital:""});
+  openSidebar(); // navigasi menutup drawer; buka lagi supaya submenu 3 RS terlihat
+});
 /* ---------- Beranda: seret foto untuk menukar posisi (tekan-tahan lalu seret) ---------- */
 const HOME_CARDS = {sws: $("homeSws"), joy: $("homeJoy")};
 const HOME_ORDER_KEY = "pelacak_home_order";
