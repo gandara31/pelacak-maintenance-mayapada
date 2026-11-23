@@ -354,6 +354,7 @@
     <button type="button" class="menuitem" data-h="RSUD Leuwiliang"><span class="dot"></span>RSUD Leuwiliang</button>
     <div class="side-sep"></div>
     <button type="button" class="menuitem" id="addMenuBtn"><span class="dot"></span>Tambah Mesin</button>
+    <div class="side-sep"></div>
     <button type="button" class="menuitem has-sub" id="deletedMenuBtn" aria-expanded="false" aria-controls="deletedSubmenu"><span class="lbl">Riwayat Dihapus</span><span class="chev">›</span></button>
     <div class="submenu hidden" id="deletedSubmenu"></div>
     <button type="button" class="menuitem has-sub" id="addedMenuBtn" aria-expanded="false" aria-controls="addedSubmenu"><span class="lbl">Riwayat Penambahan Mesin</span><span class="chev">›</span></button>
@@ -475,8 +476,7 @@
   <main id="deletedMain" class="hidden">
     <section class="panel">
       <h2>Riwayat Dihapus</h2>
-      <p class="hint">Mesin yang sudah dihapus beserta riwayatnya. Hanya untuk dilihat — penghapusan yang terjadi sebelum fitur ini dibuat tidak tercatat di sini.</p>
-      <div class="filterchips" id="deletedFilter"></div>
+      <p class="hint" id="deletedHint">Mesin yang sudah dihapus beserta riwayatnya. Hanya untuk dilihat — penghapusan yang terjadi sebelum fitur ini dibuat tidak tercatat di sini.</p>
       <div id="deletedList"></div>
     </section>
   </main>
@@ -972,7 +972,7 @@ function renderDeleteHistory(m){
 }
 /* ---------- arsip mesin yang dihapus (tabel deleted_machines, read-only) ---------- */
 let deletedOpen = new Set(); // id arsip yang riwayatnya sedang dibuka
-let deletedFilter = ""; // nama rumah sakit yang dipilih lewat chip di Riwayat Dihapus (tanpa "Semua")
+let deletedFilter = ""; // nama rumah sakit yang dipilih lewat submenu Riwayat Dihapus (tanpa chip di dalam tampilan)
 function prettyDateTime(ts){
   if(!ts) return "-";
   try{
@@ -1008,23 +1008,12 @@ function renderDeletedHistory(d){
 function renderDeletedList(){
   const box = $("deletedList");
   if(!box) return;
-  /* Chip filter rumah sakit beserta jumlah mesin yang dihapus per RS — tanpa
-     chip "Semua", polanya sama seperti Riwayat Penambahan Mesin. Bila belum
-     ada pilihan yang sah, pakai rumah sakit yang terakhir dipakai. */
-  const filterBox = $("deletedFilter");
+  /* Rumah sakit dipilih lewat submenu di menu samping (bukan chip di dalam
+     tampilan). Bila belum ada pilihan yang sah, pakai rumah sakit yang
+     terakhir dipakai. Nama RS yang sedang dilihat ditulis di deskripsi. */
   if(!HOSPITALS.includes(deletedFilter)) deletedFilter = HOSPITALS.includes(activeHospital) ? activeHospital : H_MAYAPADA;
-  if(filterBox){
-    filterBox.innerHTML = "";
-    HOSPITALS.forEach(h => {
-      const n = deleted.filter(d => (d.hospital || H_MAYAPADA) === h).length;
-      const b = document.createElement("button");
-      b.type = "button";
-      b.textContent = `${shortH(h)} (${n})`;
-      if(deletedFilter === h) b.classList.add("active");
-      b.addEventListener("click", () => { if(deletedFilter !== h){ deletedFilter = h; saveView(); renderDeletedList(); } });
-      filterBox.appendChild(b);
-    });
-  }
+  const hint = $("deletedHint");
+  if(hint) hint.textContent = `Mesin yang sudah dihapus di ${shortH(deletedFilter)} beserta riwayatnya. Hanya untuk dilihat — penghapusan yang terjadi sebelum fitur ini dibuat tidak tercatat di sini.`;
   box.innerHTML = "";
   const list = deleted.filter(d => (d.hospital || H_MAYAPADA) === deletedFilter);
   if(!deleted.length){
