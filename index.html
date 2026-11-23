@@ -321,6 +321,7 @@
     <button type="button" id="installMenuItem" role="menuitem">Instal aplikasi</button>
     <button type="button" id="shareMenuItem" role="menuitem">Bagikan tautan</button>
     <button type="button" id="copyMenuItem" role="menuitem">Salin tautan</button>
+    <button type="button" id="backupMenuItem" role="menuitem">Unduh cadangan data</button>
   </div>
   <div id="homeView" class="hidden">
     <div class="homehero">
@@ -1135,6 +1136,38 @@ async function copyAppLink(){
   }
   toast("Tautan disalin, tempel di WhatsApp");
 }
+/* ---------- unduh cadangan data (JSON): semua mesin, riwayat, arsip hapusan, total ---------- */
+async function downloadBackup(){
+  try{
+    // Arsip hapusan diambil segar dari Supabase saat tombol ditekan, supaya file selalu lengkap.
+    let freshDeleted;
+    try{ freshDeleted = await rest("/deleted_machines?select=*&order=deleted_at.desc"); }
+    catch(e){ throw new Error("arsip hapusan tidak bisa dimuat: " + e.message); }
+    deleted = freshDeleted || [];
+    if(view === "deleted") renderDeletedList();
+    const serialOf = {};
+    machines.forEach(m => { serialOf[m.id] = m.serial; });
+    const today = todayJakarta();
+    const backup = {
+      app: "Pelacak Maintenance Mayapada",
+      exportedAt: new Date().toISOString(),
+      exportedAtWIB: prettyDateTime(new Date().toISOString()),
+      counts: {machines: machines.length, logs: logs.length, deleted: deleted.length},
+      totals: Object.assign({}, totals),
+      machines: machines.map(m => ({serial: m.serial, model: m.model, hospital: m.hospital || H_MAYAPADA, year: (m.year == null ? null : m.year), note: m.note || ""})),
+      logs: logs.map(l => ({serial: serialOf[l.machine_id] || "", machine_id: l.machine_id, date: l.date, note: l.note || "", seq: (l.seq == null ? null : l.seq), round: (l.round == null ? null : l.round), created_at: l.created_at || null})),
+      deleted: deleted.map(d => ({serial: d.serial, model: d.model, hospital: d.hospital || H_MAYAPADA, year: (d.year == null ? null : d.year), note: d.note || "", deleted_at: d.deleted_at || null, deleted_by: d.deleted_by || null, logs: (d.logs || []).map(l => ({date: l.date, note: l.note || "", seq: (l.seq == null ? null : l.seq), round: (l.round == null ? null : l.round), created_at: l.created_at || null}))}))
+    };
+    const fileName = `cadangan-pelacak-maintenance-${today}.json`;
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {type: "application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = fileName;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast("Cadangan diunduh: " + fileName);
+  }catch(e){ toast("Gagal mengunduh cadangan: " + e.message); }
+}
 $("installMenuItem").addEventListener("click", async () => {
   closeDotsMenu();
   if(isInstalled()){ toast("Aplikasi sudah terpasang"); return; }
@@ -1155,6 +1188,7 @@ $("shareMenuItem").addEventListener("click", async () => {
   } else { await copyAppLink(); }
 });
 $("copyMenuItem").addEventListener("click", async () => { closeDotsMenu(); await copyAppLink(); });
+$("backupMenuItem").addEventListener("click", async () => { closeDotsMenu(); await downloadBackup(); });
 document.querySelectorAll("#sidebar .menuitem[data-h]").forEach(b => b.addEventListener("click", () => {
   goDash({hospital: b.dataset.h});
   closeSidebar();
