@@ -206,6 +206,13 @@
   .delhist .hd2{font-weight:700; color:var(--navy)}
   .delhist .hn2{color:var(--muted)}
   .delhist .hempty{font-size:13px; color:var(--muted)}
+  /* ---------- Penyimpanan File per rumah sakit ---------- */
+  .backbtn{display:inline-block; margin:0 0 10px; background:none; border:none; color:var(--navy2); font-size:14px; font-weight:700; cursor:pointer; padding:0}
+  .hscard{cursor:pointer}
+  .fileprev{margin-top:10px; border:1px solid var(--line); border-radius:12px; background:#fff; padding:11px 12px}
+  .fileprev img{max-width:100%; border-radius:10px; display:block}
+  .fileprev .finfo{font-size:13px; line-height:1.6; color:var(--muted)}
+  .fileprev .finfo b{color:var(--navy)}
   .mcard .r1{display:flex; align-items:flex-start; gap:9px}
   .mcard .serial{font-weight:800; font-size:16.5px; color:var(--navy); word-break:break-all}
   .mcard .model{font-size:12.5px; color:var(--muted); margin-top:1px}
@@ -310,6 +317,7 @@
     <button type="button" class="menuitem" data-h="RSUD Leuwiliang"><span class="dot"></span>RSUD Leuwiliang</button>
     <button type="button" class="menuitem" id="deletedMenuBtn"><span class="dot"></span>Riwayat Dihapus</button>
     <button type="button" class="menuitem" id="addedMenuBtn"><span class="dot"></span>Riwayat Tambah</button>
+    <button type="button" class="menuitem" id="filesMenuBtn"><span class="dot"></span>Penyimpanan File</button>
     <button type="button" class="menuitem" id="addMenuBtn"><span class="dot"></span>Tambah Mesin</button>
     <div class="side-sep"></div>
     <button type="button" class="menuitem" id="logoutMenuBtn"><span class="dot"></span>Logout</button>
@@ -441,6 +449,22 @@
       <div id="addedPageNav"></div>
     </section>
   </main>
+
+  <!-- ===== PENYIMPANAN FILE (tampilan sendiri lewat menu) ===== -->
+  <main id="filesMain" class="hidden">
+    <section class="panel">
+      <h2>Penyimpanan File</h2>
+      <p class="hint">File tersimpan di server, jadi tidak hilang bila HP rusak dan bisa dilihat teman yang memakai aplikasi yang sama. Ketuk rumah sakit untuk membuka isinya.</p>
+      <div id="filesHome"></div>
+      <div id="filesDetail" class="hidden">
+        <button type="button" id="filesBackBtn" class="backbtn">‹ Semua Rumah Sakit</button>
+        <div id="filesDetailHead" style="margin:0 0 12px"></div>
+        <button type="button" class="btnmain" id="addFileBtn" style="margin-top:0">+ Tambahkan Data</button>
+        <input type="file" id="fileInput" class="hidden" multiple>
+        <div id="filesList" style="margin-top:12px"></div>
+      </div>
+    </section>
+  </main>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -464,13 +488,13 @@ let openHistory = new Set(); // kartu yang riwayatnya sedang dibuka
 const H_MAYAPADA = "Mayapada Hospital Bogor";
 let activeHospital = ["Mayapada Hospital Bogor", "RS PMI", "RSUD Leuwiliang"].includes(localStorage.getItem("pelacak_hospital")) ? localStorage.getItem("pelacak_hospital") : H_MAYAPADA;
 let totals = {"Mayapada Hospital Bogor": 11, "RS PMI": 49, "RSUD Leuwiliang": 28}; // total mesin per RS, bisa diubah dari halaman Ronde
-let view = "home";       // tampilan aktif: "home" (beranda bergambar) / "dash" (tampilan normal) / "add" (tambah mesin) / "deleted" (riwayat dihapus) / "added" (riwayat tambah)
+let view = "home";       // tampilan aktif: "home" (beranda bergambar) / "dash" (tampilan normal) / "add" (tambah mesin) / "deleted" (riwayat dihapus) / "added" (riwayat tambah) / "files" (penyimpanan file)
 let statusFilter = "due"; // filter status daftar: "due" (hanya Belum, default) | "ok" (hanya Sudah) — diganti lewat sakelar status di atas daftar
 let modelFilterVal = ""; // filter model daftar: "" (semua) | "JOYHEAL" | "SWS-6000A" — diatur lewat ketuk gambar di Beranda (toolbar pencarian sudah dihapus)
 
 /* ---------- ingat posisi tampilan terakhir (tetap saat refresh) ---------- */
 const VIEW_KEY = "pelacak_view";
-const VIEW_NAMES = ["home", "dash", "add", "deleted", "added"];
+const VIEW_NAMES = ["home", "dash", "add", "deleted", "added", "files"];
 const HOSPITALS = ["Mayapada Hospital Bogor", "RS PMI", "RSUD Leuwiliang"];
 function saveView(){
   try{ localStorage.setItem(VIEW_KEY, JSON.stringify({view, hospital: activeHospital, model: modelFilterVal, status: statusFilter})); }catch(e){}
@@ -880,6 +904,156 @@ async function refreshAdded(){
   }catch(e){ toast("Gagal memuat riwayat tambah: " + e.message); }
   renderAddedList();
 }
+/* ---------- Penyimpanan File per rumah sakit (tabel app_files) ---------- */
+const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB per file
+let appFiles = [];         // semua file dari tabel app_files (tanpa kolom data — diambil saat perlu)
+let filesHospital = "";    // "" = daftar RS | nama rumah sakit yang sedang dibuka
+let filesOpen = new Set(); // id file yang pratinjaunya sedang dibuka
+let fileDataCache = {};    // id -> base64 isi file (sudah dimuat)
+function fmtSize(n){
+  n = Number(n) || 0;
+  if(n >= 1048576) return (n / 1048576).toFixed(1).replace(".", ",") + " MB";
+  if(n >= 1024) return Math.round(n / 1024) + " KB";
+  return n + " B";
+}
+async function refreshFiles(){
+  try{ appFiles = await rest("/app_files?select=id,hospital,name,mime,size,uploaded_at,uploaded_by&order=uploaded_at.desc"); }
+  catch(e){ toast("Gagal memuat file: " + e.message); }
+  renderFiles();
+}
+function filesOfHospital(h){ return appFiles.filter(f => (f.hospital || H_MAYAPADA) === h); }
+function renderFiles(){
+  const home = $("filesHome"), detail = $("filesDetail");
+  if(!home || !detail) return;
+  if(!filesHospital){
+    home.classList.remove("hidden");
+    detail.classList.add("hidden");
+    home.innerHTML = "";
+    HOSPITALS.forEach(h => {
+      const n = filesOfHospital(h).length;
+      const card = document.createElement("div");
+      card.className = "mcard hscard";
+      card.setAttribute("role", "button");
+      card.setAttribute("tabindex", "0");
+      card.innerHTML = `<div class="r1"><div><div class="serial">${esc(shortH(h))}</div><div class="model">${esc(h)}</div></div><span class="badge">${n} file</span></div>
+        <div class="meta">Ketuk untuk membuka penyimpanan ${esc(shortH(h))}</div>`;
+      const open = () => { filesHospital = h; filesOpen = new Set(); renderFiles(); };
+      card.addEventListener("click", open);
+      card.addEventListener("keydown", (ev) => { if(ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); open(); } });
+      home.appendChild(card);
+    });
+    return;
+  }
+  home.classList.add("hidden");
+  detail.classList.remove("hidden");
+  $("filesDetailHead").innerHTML = `<b style="font-size:15px; color:var(--navy)">${esc(filesHospital)}</b><div style="font-size:13px; color:var(--muted)">Ketuk file untuk melihatnya. Tombol Unduh di tiap file mengunduh file itu saja.</div>`;
+  const box = $("filesList");
+  box.innerHTML = "";
+  const list = filesOfHospital(filesHospital);
+  if(!list.length){
+    box.innerHTML = `<div class="panel empty">Belum ada file di ${esc(shortH(filesHospital))}.</div>`;
+    return;
+  }
+  list.forEach(f => {
+    const open = filesOpen.has(f.id);
+    const isImg = (f.mime || "").startsWith("image/");
+    const card = document.createElement("div");
+    card.className = "mcard" + (open ? " selected" : "");
+    card.innerHTML = `<div class="r1"><div style="min-width:0"><div class="serial" style="word-break:break-all">${esc(f.name)}</div><div class="model">${fmtSize(f.size)} · ${prettyDateTime(f.uploaded_at)}</div></div></div>
+      <div class="meta">Ketuk untuk ${open ? "sembunyikan" : "lihat"}${isImg ? " pratinjau" : " info file"}</div>
+      <div class="acts">
+        <button type="button" class="primary" data-act="view">${open ? "Tutup" : "Lihat"}</button>
+        <button type="button" data-act="dl">Unduh</button>
+      </div>`;
+    if(open) card.appendChild(renderFilePreview(f));
+    card.addEventListener("click", async (ev) => {
+      const btn = ev.target.closest("button");
+      const act = btn ? btn.dataset.act : null;
+      if(act === "dl"){ await downloadAppFile(f); return; }
+      await toggleFilePreview(f);
+    });
+    box.appendChild(card);
+  });
+}
+function renderFilePreview(f){
+  const wrap = document.createElement("div");
+  wrap.className = "fileprev";
+  const data = fileDataCache[f.id] || "";
+  if((f.mime || "").startsWith("image/") && data){
+    const img = document.createElement("img");
+    img.src = `data:${f.mime};base64,${data}`;
+    img.alt = f.name;
+    wrap.appendChild(img);
+  } else {
+    wrap.innerHTML = `<div class="finfo"><b>${esc(f.name)}</b><br>Jenis: ${esc(f.mime || "-")}<br>Ukuran: ${fmtSize(f.size)}<br>Diunggah: ${prettyDateTime(f.uploaded_at)}${f.uploaded_by ? "<br>Oleh: " + esc(f.uploaded_by) : ""}<br><br>Pratinjau tidak tersedia untuk jenis file ini — unduh untuk membukanya.</div>`;
+  }
+  return wrap;
+}
+async function toggleFilePreview(f){
+  if(filesOpen.has(f.id)){ filesOpen.delete(f.id); renderFiles(); return; }
+  if(!fileDataCache[f.id]){
+    try{
+      const rows = await rest(`/app_files?select=data&id=eq.${f.id}`);
+      if(!rows || !rows.length) throw new Error("File tidak ditemukan");
+      fileDataCache[f.id] = rows[0].data || "";
+    }catch(e){ toast("Gagal membuka file: " + e.message); return; }
+  }
+  filesOpen.add(f.id);
+  renderFiles();
+}
+async function downloadAppFile(f){
+  try{
+    if(!fileDataCache[f.id]){
+      const rows = await rest(`/app_files?select=data&id=eq.${f.id}`);
+      if(!rows || !rows.length) throw new Error("File tidak ditemukan");
+      fileDataCache[f.id] = rows[0].data || "";
+    }
+    const blob = await (await fetch(`data:${f.mime || "application/octet-stream"};base64,${fileDataCache[f.id]}`)).blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = f.name || "file";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast("File diunduh: " + (f.name || "file"));
+  }catch(e){ toast("Gagal mengunduh file: " + e.message); }
+}
+function readFileAsBase64(file){
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const s = String(r.result || "");
+      resolve(s.includes(",") ? s.split(",")[1] : s);
+    };
+    r.onerror = () => reject(new Error("Tidak bisa membaca file"));
+    r.readAsDataURL(file);
+  });
+}
+$("addFileBtn").addEventListener("click", () => { $("fileInput").click(); });
+$("filesBackBtn").addEventListener("click", () => { filesHospital = ""; filesOpen = new Set(); renderFiles(); });
+$("fileInput").addEventListener("change", async () => {
+  const input = $("fileInput");
+  const picked = Array.from(input.files || []);
+  input.value = "";
+  if(!picked.length) return;
+  let ok = 0, big = 0, fail = 0;
+  for(const file of picked){
+    if(file.size > MAX_FILE_BYTES){ big++; toast("File terlalu besar, maksimal 5 MB: " + file.name); continue; }
+    try{
+      const b64 = await readFileAsBase64(file);
+      await rest("/app_files", {method: "POST", body: JSON.stringify({
+        hospital: filesHospital || activeHospital,
+        name: file.name,
+        mime: file.type || "application/octet-stream",
+        size: file.size,
+        data: b64,
+        uploaded_by: sessionEmail()
+      })});
+      ok++;
+    }catch(e){ fail++; toast("Gagal menyimpan " + file.name + ": " + e.message); }
+  }
+  if(ok){ toast(ok === 1 ? "File tersimpan" : ok + " file tersimpan"); await refreshFiles(); }
+  else if(!big && !fail) toast("Tidak ada file yang tersimpan");
+});
 function renderRecog(){
   const box = $("recogBox");
   const q = $("snInput").value.trim().toUpperCase();
@@ -1135,6 +1309,11 @@ function renderAll(){
     document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
     $("addedMenuBtn").classList.add("active");
     renderAddedList();
+  } else if(view === "files"){
+    $("hdrHospital").textContent = "Penyimpanan File";
+    document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
+    $("filesMenuBtn").classList.add("active");
+    renderFiles();
   }
 }
 
@@ -1146,6 +1325,7 @@ function showView(v){
   $("addMain").classList.toggle("hidden", v !== "add");
   $("deletedMain").classList.toggle("hidden", v !== "deleted");
   $("addedMain").classList.toggle("hidden", v !== "added");
+  $("filesMain").classList.toggle("hidden", v !== "files");
   if(v === "home"){
     applyHomeOrder();
     $("hdrHospital").textContent = "Beranda";
@@ -1165,6 +1345,11 @@ function showView(v){
     document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
     $("addedMenuBtn").classList.add("active");
     renderAddedList();
+  } else if(v === "files"){
+    $("hdrHospital").textContent = "Penyimpanan File";
+    document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
+    $("filesMenuBtn").classList.add("active");
+    renderFiles();
   } else {
     syncHospitalTabs();
   }
@@ -1305,6 +1490,7 @@ $("homeMenuBtn").addEventListener("click", () => { showView("home"); renderAll()
 $("addMenuBtn").addEventListener("click", () => { showView("add"); renderAll(); closeSidebar(); });
 $("deletedMenuBtn").addEventListener("click", () => { showView("deleted"); closeSidebar(); refreshDeleted(); });
 $("addedMenuBtn").addEventListener("click", () => { showView("added"); closeSidebar(); refreshAdded(); });
+$("filesMenuBtn").addEventListener("click", () => { filesHospital = ""; showView("files"); closeSidebar(); refreshFiles(); });
 /* ---------- Beranda: seret foto untuk menukar posisi (tekan-tahan lalu seret) ---------- */
 const HOME_CARDS = {sws: $("homeSws"), joy: $("homeJoy")};
 const HOME_ORDER_KEY = "pelacak_home_order";
