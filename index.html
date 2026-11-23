@@ -285,15 +285,18 @@
   #homeView{max-width:640px; margin:0 auto; padding:16px 14px 60px; position:relative; z-index:1}
   #homeView{padding-bottom:92px}
   .homehero{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px}
-  .homecard{background:var(--card); border:1.5px solid var(--line); border-radius:14px; padding:10px; box-shadow:0 2px 10px rgba(11,37,69,.07); cursor:pointer; text-align:center}
-  .homecard img{width:100%; height:190px; object-fit:contain; background:#fff; border-radius:9px; display:block}
-  .homecard:active{border-color:var(--navy2)}
+  /* Kartu Beranda — Pilihan 2 Gelap (dipilih user 23 Nov 2026): kartu navy,
+     foto asli dalam bingkai putih bercahaya. Foto tidak diganti, tidak ada
+     tulisan tambahan; ketuk dan seret tetap seperti semula. */
+  .homecard{background:linear-gradient(165deg,#143d63,#0d2a47 60%,#0a1f36); border:1.5px solid #2b5a86; border-radius:14px; padding:10px; box-shadow:0 4px 18px rgba(0,0,0,.35); cursor:pointer; text-align:center}
+  .homecard img{width:100%; height:190px; object-fit:contain; background:#fff; border-radius:9px; display:block; box-shadow:0 0 0 1px rgba(255,255,255,.18),0 0 26px rgba(96,165,250,.45)}
+  .homecard:active{border-color:#7db4f0}
   /* Seret foto Beranda untuk menukar posisi (tekan-tahan lalu seret) */
   .homecard{touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; cursor:grab}
   .homecard img{pointer-events:none; -webkit-user-drag:none}
-  .homecard.holding{transform:scale(1.03); border-color:var(--navy2); box-shadow:0 8px 22px rgba(11,37,69,.22)}
-  .homecard.dragging{position:relative; z-index:5; border-color:var(--navy); box-shadow:0 16px 34px rgba(11,37,69,.32); cursor:grabbing; transition:none}
-  .homecard.drop-hint{border-color:var(--navy); box-shadow:0 0 0 3px var(--navy2); background:#eef4fb}
+  .homecard.holding{transform:scale(1.03); border-color:#60a5fa; box-shadow:0 8px 22px rgba(0,0,0,.45),0 0 0 2px rgba(96,165,250,.35)}
+  .homecard.dragging{position:relative; z-index:5; border-color:#60a5fa; box-shadow:0 16px 34px rgba(0,0,0,.45),0 0 0 2px rgba(96,165,250,.4); cursor:grabbing; transition:none}
+  .homecard.drop-hint{border-color:#60a5fa; box-shadow:0 0 0 3px rgba(96,165,250,.5); background:#1a4a73}
 </style>
 </head>
 <body>
@@ -562,22 +565,29 @@ function restoreView(){
 /* ---------- tombol Back selangkah demi selangkah (History API) ----------
    Setiap perpindahan tampilan dicatat sebagai satu langkah riwayat
    (pushState), jadi tombol Back HP / browser kembali satu langkah ke
-   tampilan sebelumnya — bukan langsung keluar dari aplikasi.
-   Entri paling bawah selalu Beranda (ditandai base:true). Back dari
-   Beranda pertama kali hanya menampilkan pesan "Tekan sekali lagi
-   untuk keluar"; ditekan lagi dalam 2 detik, aplikasi keluar seperti
-   biasa. Bila tidak ditekan lagi, pesan hilang dan Back berikutnya
-   mengulang dari pesan lagi (satu entri Beranda baru ditambahkan saat
-   pesan kedaluwarsa, supaya Back berikutnya masih bisa dicegat).
+   tampilan sebelumnya — bukan langsung ke Beranda, bukan langsung keluar.
+   Entri dasar adalah tampilan saat ini ketika aplikasi dibuka (pulihan,
+   atau Beranda bila tidak ada pulihan) — ditandai base:true. Tidak ada
+   entri Beranda palsu di bawah tampilan pulihan. Di bawah entri dasar
+   hanya ada entri awal dokumen (state null): Back dari tampilan dasar
+   mendarat di sana dan menampilkan pesan "Tekan sekali lagi untuk
+   keluar"; ditekan lagi dalam 2 detik, aplikasi keluar seperti biasa.
+   Bila tidak ditekan lagi, pesan hilang dan Back berikutnya mengulang
+   dari pesan lagi (satu entri tampilan saat ini ditambahkan saat pesan
+   kedaluwarsa, supaya Back berikutnya masih bisa dicegat).
    Entri dari sesi sebelum refresh dikenali lewat sid — saat keluar,
-   entri lama itu dilewati terus sampai aplikasi benar-benar keluar. */
+   entri lama itu dilewati terus sampai aplikasi benar-benar keluar.
+   Ketuk menu / RS yang sama dengan tampilan sekarang tidak menambah
+   entri baru (tidak ada entri ganda), supaya Back pertama tidak terasa
+   "tidak jalan". */
 const NAV_SID = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 let exitArmed = false;   // Back pertama di Beranda sudah ditekan (tunggu Back kedua)
 let exiting = false;     // sedang keluar: lewati entri lama sampai keluar aplikasi
 let exitTimer = null;
 function currentNavState(){
   return {view, hospital: activeHospital, model: modelFilterVal, status: statusFilter,
-    filesHospital: (view === "files" ? filesHospital : ""), sid: NAV_SID};
+    filesHospital: (view === "files" ? filesHospital : ""),
+    deletedFilter: deletedFilter, addedFilter: addedFilter, sid: NAV_SID};
 }
 function armExit(){
   exitArmed = true;
@@ -586,21 +596,29 @@ function armExit(){
   exitTimer = setTimeout(() => {
     exitArmed = false;
     // Pesan sudah hilang: jaga supaya Back berikutnya masih bisa dicegat
-    // (tambah satu entri Beranda di atas entri dasar).
-    if(view === "home" && session){
+    // (tambah satu entri tampilan saat ini di atas entri awal, supaya Back
+    // berikutnya mendarat di entri dasar dan menampilkan pesan lagi —
+    // bukan langsung keluar). Berlaku untuk tampilan dasar apa pun, bukan
+    // hanya Beranda.
+    if(session){
       try{ history.pushState(currentNavState(), ""); }catch(e){}
     }
   }, 2000);
 }
 function initHistory(){
-  // Entri dasar selalu Beranda — Back dari tampilan pulihan (mis. dashboard)
-  // mampir dulu ke Beranda, bukan langsung keluar. Tampilan saat ini selalu
-  // ditambahkan di atas entri dasar, supaya Back pertama di Beranda masih
-  // bisa dicegat (tanpa entri di atasnya, Back langsung keluar dari aplikasi).
+  // Entri dasar = tampilan saat ini (pulihan, atau Beranda bila tidak ada
+  // pulihan). Entri ini DITAMBAHKAN di atas entri awal dokumen — entri awal
+  // itu state-nya null dan sengaja dibiarkan, supaya Back dari tampilan
+  // dasar mendarat di sana dan menampilkan pesan keluar, bukan pindah ke
+  // Beranda. Tidak ada entri Beranda palsu di bawah tampilan pulihan:
+  // Back dari tampilan pulihan tidak pernah mendarat di layar yang tidak
+  // dikunjungi di sesi ini.
+  // (Satu entri dasar saja tidak cukup: tanpa entri di bawahnya, Back
+  // pertama tidak bisa dicegat browser dan aplikasi langsung keluar tanpa
+  // pesan — karena itu entri awal null ini dipertahankan sebagai landasan.)
   const st = currentNavState();
   try{
-    history.replaceState({view:"home", hospital: activeHospital, model:"", status:"due", filesHospital:"", sid: NAV_SID, base:true}, "");
-    history.pushState(Object.assign({}, st, {sid: NAV_SID}), "");
+    history.pushState(Object.assign({}, st, {sid: NAV_SID, base:true}), "");
   }catch(e){}
 }
 function applyState(s, instantClose){
@@ -613,6 +631,10 @@ function applyState(s, instantClose){
     filesHospital = s.filesHospital || "";
     filesOpen = new Set();
   }
+  // Pulihkan juga filter RS Riwayat Dihapus / Riwayat Penambahan Mesin dari
+  // entri riwayat, supaya Back mengembalikan filter RS sebelumnya.
+  if(HOSPITALS.includes(s.deletedFilter)) deletedFilter = s.deletedFilter;
+  if(HOSPITALS.includes(s.addedFilter)) addedFilter = s.addedFilter;
   // Ganti tampilan: drawer tidak boleh tertinggal terbuka menutupi tampilan baru.
   // Saat pergantian dipicu tombol Back, drawer ditutup seketika (tanpa animasi
   // geser) supaya menu tidak terlihat bergeser saat Back ditekan.
@@ -623,6 +645,25 @@ function applyState(s, instantClose){
   else if(s.view === "files") refreshFiles();
   else renderAll();
 }
+// Dua langkah riwayat dianggap sama bila tampilan dan filter YANG BERLAKU
+// untuk tampilan itu sama. Filter tampilan lain tidak dibandingkan —
+// misalnya rumah sakit tidak memengaruhi tampilan Beranda, jadi kembali
+// ke Beranda setelah pindah rumah sakit tidak boleh menambah entri baru
+// (Back dari situ akan terasa "tidak jalan": Beranda ke Beranda).
+function sameNavState(a, b){
+  if(!a || !b) return false;
+  if(a.view !== b.view) return false;
+  if(a.view === "dash" || a.view === "add"){
+    if(a.hospital !== b.hospital) return false;
+  }
+  if(a.view === "dash"){
+    if(a.model !== b.model || a.status !== b.status) return false;
+  }
+  if(a.view === "files" && (a.filesHospital || "") !== (b.filesHospital || "")) return false;
+  if(a.view === "deleted" && (a.deletedFilter || "") !== (b.deletedFilter || "")) return false;
+  if(a.view === "added" && (a.addedFilter || "") !== (b.addedFilter || "")) return false;
+  return true;
+}
 function navigateTo(state, instantClose){
   exitArmed = false; exiting = false; clearTimeout(exitTimer);
   const full = {
@@ -631,9 +672,21 @@ function navigateTo(state, instantClose){
     model: (state.model !== undefined ? state.model : modelFilterVal),
     status: state.status || statusFilter,
     filesHospital: state.filesHospital || "",
+    deletedFilter: state.deletedFilter || deletedFilter,
+    addedFilter: state.addedFilter || addedFilter,
     sid: NAV_SID
   };
-  try{ history.pushState(full, ""); }catch(e){}
+  // Back di tampilan dasar memindahkan posisi riwayat ke entri awal (state
+  // null); bila pengguna lalu pindah tampilan sebelum pesan keluar hilang,
+  // kembalikan dulu tampilan saat ini sebagai entri dasar supaya rantai
+  // Back tidak putus (Back dari tampilan baru harus kembali ke sini, bukan
+  // menampilkan pesan keluar).
+  if(!history.state){
+    try{ history.pushState(Object.assign({}, currentNavState(), {base:true}), ""); }catch(e){}
+  }
+  if(!sameNavState(history.state, full)){
+    try{ history.pushState(full, ""); }catch(e){}
+  }
   applyState(full, instantClose);
 }
 window.addEventListener("popstate", (ev) => {
@@ -644,6 +697,23 @@ window.addEventListener("popstate", (ev) => {
   if(exiting){
     if(s && s.view){ setTimeout(() => history.back(), 0); }
     else { exiting = false; }
+    return;
+  }
+  // Entri basi dari sesi sebelum refresh (sid lama): jangan di-apply —
+  // tampilan itu milik sesi yang sudah mati. Back PERTAMA yang mendarat di
+  // sini hanya menampilkan pesan keluar (seperti Back di tampilan dasar);
+  // Back KEDUA dalam 2 detik baru melewati entri basi itu dan keluar.
+  // Tanpa pesan di Back pertama, aplikasi akan langsung tertutup tanpa
+  // peringatan begitu halaman pernah di-refresh.
+  if(s && s.view && s.sid !== NAV_SID){
+    if(exitArmed){
+      exitArmed = false;
+      clearTimeout(exitTimer);
+      exiting = true;
+      setTimeout(() => history.back(), 0);
+    } else {
+      armExit();
+    }
     return;
   }
   // Drawer sedang terbuka: Back menutup drawer dulu (satu langkah),
@@ -692,18 +762,20 @@ window.addEventListener("popstate", (ev) => {
     if(s && s.view && s.sid !== NAV_SID){ exiting = true; setTimeout(() => history.back(), 0); }
     return;
   }
-  // Tiba di entri dasar (Beranda paling awal): tampilkan Beranda, tahan dulu, tampilkan pesan.
+  // Tiba di entri dasar (tampilan awal sesi ini): tampilkan saja, tanpa
+  // pesan keluar. Pesan hanya muncul saat Back ditekan DALAM keadaan sudah
+  // di tampilan dasar (cabang entri null di bawah).
   if(s && s.base){
     applyState(s, true);
-    armExit();
     return;
   }
   if(s && s.view){
     applyState(s, true);
     return;
   }
-  // Tiba di entri awal yang belum punya state: kembali ke Beranda dulu.
-  if(view !== "home"){ navigateTo({view:"home"}, true); return; }
+  // Tiba di entri awal dokumen (belum punya state): Back ditekan saat sudah
+  // di tampilan dasar — jangan pindah ke mana pun, tampilkan saja pesan
+  // keluar. Back berikutnya (dalam 2 detik) keluar dari aplikasi.
   armExit();
 });
 function shortH(h){ return h === H_MAYAPADA ? "Mayapada" : h; }
