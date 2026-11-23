@@ -426,6 +426,24 @@ let totals = {"Mayapada Hospital Bogor": 11, "RS PMI": 49, "RSUD Leuwiliang": 28
 let view = "home";       // tampilan aktif: "home" (beranda bergambar) / "dash" (tampilan normal) / "add" (tambah mesin)
 let statusFilter = null; // filter status daftar: null (semua) | "due" (hanya Belum) | "ok" (hanya Sudah) — diubah lewat klik judul kolom
 let modelFilterVal = ""; // filter model daftar: "" (semua) | "JOYHEAL" | "SWS-6000A" — diatur lewat ketuk gambar di Beranda (toolbar pencarian sudah dihapus)
+
+/* ---------- ingat posisi tampilan terakhir (tetap saat refresh) ---------- */
+const VIEW_KEY = "pelacak_view";
+const VIEW_NAMES = ["home", "dash", "add", "deleted"];
+const HOSPITALS = ["Mayapada Hospital Bogor", "RS PMI", "RSUD Leuwiliang"];
+function saveView(){
+  try{ localStorage.setItem(VIEW_KEY, JSON.stringify({view, hospital: activeHospital, model: modelFilterVal, status: statusFilter})); }catch(e){}
+}
+function restoreView(){
+  let saved = null;
+  try{ saved = JSON.parse(localStorage.getItem(VIEW_KEY) || "null"); }catch(e){ saved = null; }
+  if(!saved || !VIEW_NAMES.includes(saved.view)){ showView("home"); return; }
+  if(HOSPITALS.includes(saved.hospital)) activeHospital = saved.hospital;
+  modelFilterVal = ["", "JOYHEAL", "SWS-6000A"].includes(saved.model) ? saved.model : "";
+  statusFilter = (saved.status === "due" || saved.status === "ok") ? saved.status : null;
+  try{ localStorage.setItem("pelacak_hospital", activeHospital); }catch(e){}
+  showView(saved.view);
+}
 function shortH(h){ return h === H_MAYAPADA ? "Mayapada" : h; }
 function inHospital(m){ return !activeHospital || (m.hospital || H_MAYAPADA) === activeHospital; }
 function syncHospitalTabs(){
@@ -558,7 +576,7 @@ function toast(text){
 function showScreen(name){
   $("authScreen").classList.toggle("hidden", name !== "auth");
   $("appScreen").classList.toggle("hidden", name !== "app");
-  if(name === "app"){ showView("home"); }
+  if(name === "app"){ restoreView(); }
   if(name === "auth"){
     $("loginForm").classList.remove("hidden");
     $("recoverForm").classList.add("hidden");
@@ -870,6 +888,7 @@ function renderList(){
   wrap.querySelectorAll("[data-status]").forEach(b => b.addEventListener("click", () => {
     const k = b.dataset.status;
     statusFilter = (statusFilter === k) ? null : k;
+    saveView();
     renderList();
   }));
 
@@ -992,6 +1011,7 @@ function showView(v){
   } else {
     syncHospitalTabs();
   }
+  saveView();
   window.scrollTo(0, 0);
 }
 function goDash(opts = {}){
@@ -1016,7 +1036,7 @@ $("celebrate").addEventListener("click", () => $("celebrate").classList.remove("
 
 /* ---------------- aksi ---------------- */
 $("snInput").addEventListener("input", renderSuggestions);
-$("clearStatusFilter").addEventListener("click", () => { statusFilter = null; renderList(); });
+$("clearStatusFilter").addEventListener("click", () => { statusFilter = null; saveView(); renderList(); });
 function openSidebar(){ $("sidebar").classList.add("open"); $("scrim").classList.add("show"); }
 function closeSidebar(){ $("sidebar").classList.remove("open"); $("scrim").classList.remove("show"); }
 $("menuBtn").addEventListener("click", () => {
