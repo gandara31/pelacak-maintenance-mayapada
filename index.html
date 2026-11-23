@@ -85,7 +85,7 @@
   @media (max-width:860px){
     #menuBtn{display:block}
   }
-  main{max-width:640px; margin:0 auto; padding:16px 14px 60px}
+  main{max-width:640px; margin:0 auto; padding:16px 10px 60px}
   .panel{background:var(--card); border-radius:14px; padding:16px; box-shadow:0 2px 10px rgba(11,37,69,.07); margin-bottom:14px}
   .panel h2{margin:0 0 4px; font-size:16px; color:var(--navy)}
   #recordPanel{scroll-margin-top:72px}
@@ -123,14 +123,23 @@
   .mcard .acts button.danger{background:#fdf0ef; color:#b3261e; border:1.5px solid #e5b4b0}
   .seqtotal{padding:11px 2px; font-weight:800; color:var(--navy)}
   .hseq{font-weight:700; color:var(--navy); background:#eef3fa; border-radius:6px; padding:1px 7px; font-size:12px; white-space:nowrap}
-  .hist .hmain{flex:1}
-  .hist .hinfo{display:flex; justify-content:space-between; align-items:center; gap:8px; padding:7px 0; border-bottom:1px dashed #e6ebf1; font-size:13.5px}
+  .hist .hmain{flex:1; min-width:0}
+  .hist .hinfo{display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; padding:7px 0; border-bottom:1px dashed #e6ebf1; font-size:13.5px}
   .mini{background:#eef3fa; color:var(--navy); border:1.5px solid var(--line); border-radius:8px; padding:6px 10px; font-weight:700; font-size:12.5px; white-space:nowrap}
   .seqedit{background:none; border:none; color:var(--navy); font-weight:700; font-size:12.5px; padding:0 2px; white-space:nowrap}
   .hist .hseq2{font-weight:800; color:var(--navy); font-size:13.5px}
   .hist .hnext{color:var(--muted); font-size:12.5px; margin-top:1px}
   /* ---------- kelompok tipe mesin berdampingan ---------- */
-  .typecols{display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:start}
+  /* Dua kolom sama lebar (minmax(0,1fr) supaya isi kartu tidak bisa
+     memaksa kolom melebar melewati layar). Baris kartu SWS dan Joyheal
+     berpasangan dalam satu grid yang sama, jadi kartu sebaris sama
+     tinggi dan baris-barisnya sejajar dari atas sampai bawah. */
+  .typecols{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px}
+  .typecols>*{min-width:0}
+  .typecols .typehead{margin:2px 0 0}
+  .typecols .mcard{margin-bottom:0}
+  .typecols .panel.empty{margin-bottom:0}
+  .cell-empty{min-width:0}
   .typehead{display:flex; align-items:center; gap:8px; margin:2px 0 10px; padding-bottom:8px; border-bottom:2px solid var(--navy); min-height:31px}
   .typehead h2{margin:0; font-size:16px; color:var(--navy); white-space:nowrap}
   .typehead .count{flex:none; background:var(--navy); color:#fff; font-size:12px; font-weight:700; border-radius:999px; padding:2px 9px}
@@ -146,24 +155,39 @@
   .pagenav{display:flex; align-items:center; justify-content:space-between; gap:8px; margin:2px 0 6px}
   .pagenav button{border:1.5px solid var(--navy); background:#fff; color:var(--navy); border-radius:9px; padding:8px 12px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap}
   .pagenav .pagenum{font-size:12.5px; font-weight:700; color:var(--muted); white-space:nowrap}
-  @media (min-width:861px){ .typecols{gap:18px} }
+  .pagenav .lbl-short{display:none}
   /* ---------- Kartu mesin di kolom sempit (HP: dua kelompok berdampingan) ---------- */
   @media (max-width:860px){
-    .typecols .mcard{padding:11px}
+    .typecols .mcard{padding:10px}
     .typecols .mcard .serial{font-size:14px}
+    .typecols .mcard .model{font-size:11.5px}
     .typecols .mcard .r1{flex-wrap:wrap}
     .typecols .mcard .badge{margin-left:0}
     .typecols .mcard .meta{font-size:12.5px}
     .typecols .mcard .acts{flex-direction:column}
-    .typecols .mcard .acts button{width:100%; text-align:center; white-space:nowrap}
+    .typecols .mcard .acts button{width:100%; text-align:center; white-space:normal; font-size:12px; padding:8px 8px; line-height:1.35}
     .typecols .panel.empty{padding:10px 8px; font-size:12.5px; line-height:1.45}
     .pagenav button{padding:8px 9px; font-size:12.5px}
+    /* Navigasi halaman di kolom sempit: dua baris — tombol Mundur/Maju
+       berdampingan di baris pertama, nomor halaman di tengah baris kedua,
+       supaya muat di dalam kolom tanpa memaksa kolom melebar. */
+    .typecols .pagenav{flex-wrap:wrap; row-gap:6px}
+    .typecols .pagenav button{flex:1 1 0; min-width:0; white-space:normal; padding:8px 6px; font-size:12px}
+    .typecols .pagenav>span:not(.pagenum){flex:1 1 0}
+    .typecols .pagenav .pagenum{flex-basis:100%; order:3; text-align:center}
+    .typecols .pagenav .lbl-long{display:none}
+    .typecols .pagenav .lbl-short{display:inline}
+    /* Baris riwayat di kartu sempit: teks memakai lebar penuh di baris
+       pertama, tombol "Ubah Nomor"/"✕" turun ke baris kedua rata kanan,
+       supaya teks tidak terjepit satu kata per baris. */
+    .typecols .hist .hrow{flex-wrap:wrap; justify-content:flex-end}
+    .typecols .hist .hmain{flex:1 1 100%}
   }
   /* ---------- pilihan teknisi ---------- */
   .techchips{display:flex; gap:9px; margin-top:2px}
   .techchip{flex:1; padding:11px 10px; border-radius:10px; border:1.5px solid var(--line); background:#f6f8fb; font-weight:700; color:var(--navy); font-size:14.5px; white-space:nowrap}
   .techchip.active{background:var(--navy); border-color:var(--navy); color:#fff}
-  .mcard{background:var(--card); border-radius:14px; padding:14px 15px; margin-bottom:11px; box-shadow:0 2px 10px rgba(11,37,69,.07); border-left:6px solid #b9c6d4}
+  .mcard{background:var(--card); border-radius:14px; padding:14px 15px; margin-bottom:11px; box-shadow:0 2px 10px rgba(11,37,69,.07); border-left:6px solid #b9c6d4; display:flex; flex-direction:column; min-width:0}
   .mcard.done{border-left-color:var(--green)}
   .mcard.due{border-left-color:var(--red)}
   .mcard.selected{outline:3px solid var(--navy); outline-offset:2px; background:#eef4fb}
@@ -181,6 +205,10 @@
   .mcard .r1{display:flex; align-items:flex-start; gap:9px}
   .mcard .serial{font-weight:800; font-size:16.5px; color:var(--navy); word-break:break-all}
   .mcard .model{font-size:12.5px; color:var(--muted); margin-top:1px}
+  /* Tiap segmen baris model tidak terbelah; tanda "·" menempel di ujung
+     segmen sebelumnya sehingga tidak pernah menggantung di awal baris. */
+  .mcard .model .seg{white-space:nowrap}
+  .mcard .model .seg:not(:last-child)::after{content:"·"; margin-left:4px}
   .badge{margin-left:auto; flex:none; font-size:11.5px; font-weight:700; padding:4px 9px; border-radius:999px}
   .badge.due{background:#fdecea; color:var(--red)}
   .badge.ok{background:var(--greenbg); color:#146c3a}
@@ -188,13 +216,13 @@
   .mcard .meta{font-size:13.5px; margin-top:8px; line-height:1.55}
   .mcard .meta .last{color:#146c3a; font-weight:600}
   .mcard .notebox{margin-top:9px; background:#fff8ec; border:1px dashed #e3c98f; border-radius:9px; padding:8px 10px; font-size:13.5px}
-  .mcard .acts{display:flex; flex-wrap:wrap; gap:8px; margin-top:11px}
+  .mcard .acts{display:flex; flex-wrap:wrap; gap:8px; margin-top:auto; padding-top:11px}
   .mcard .acts button{border:1.5px solid var(--line); background:#f6f8fb; border-radius:9px; padding:8px 12px; font-size:13px; font-weight:600; color:var(--navy)}
   .mcard .acts button.primary{background:var(--navy); border-color:var(--navy); color:#fff}
   .hist{margin-top:11px; border-top:1px solid var(--line); padding-top:9px}
   .hist .hrow{display:flex; gap:8px; align-items:flex-start; padding:7px 0; border-bottom:1px dashed #e6ebf1; font-size:13.5px}
   .hist .hrow:last-child{border-bottom:none}
-  .hist .hd{font-weight:700; color:var(--navy); white-space:nowrap}
+  .hist .hd{font-weight:700; color:var(--navy)}
   .hist .hn{flex:1; color:#3c4c5e}
   .hist .del{border:none; background:none; color:var(--red); font-size:15px; padding:0 2px}
   .inlineform{margin-top:11px; border-top:1px solid var(--line); padding-top:10px}
@@ -749,7 +777,7 @@ function renderDeletedList(){
     card.setAttribute("role", "button");
     card.setAttribute("tabindex", "0");
     card.innerHTML = `<div class="r1"><div><div class="serial">${esc(d.serial)}</div><div class="model">${esc(d.model)}${d.year ? " · Tahun " + esc(d.year) : ""} · ${esc(shortH(d.hospital || H_MAYAPADA))}</div></div><span class="badge">Dihapus</span></div>
-      <div class="meta">Dihapus: ${prettyDateTime(d.deleted_at)}<br>${n} catatan riwayat · ketuk untuk ${open ? "sembunyikan" : "lihat"} riwayat</div>`;
+      <div class="meta">Dihapus: ${prettyDateTime(d.deleted_at)}<br>${n} catatan riwayat&nbsp;· ketuk untuk ${open ? "sembunyikan" : "lihat"} riwayat</div>`;
     const toggle = () => { if(deletedOpen.has(d.id)) deletedOpen.delete(d.id); else deletedOpen.add(d.id); renderDeletedList(); };
     card.addEventListener("click", toggle);
     card.addEventListener("keydown", (ev) => { if(ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); toggle(); } });
@@ -809,17 +837,17 @@ function machineCard(m){
       : st.state === "new" ? `<span class="badge new">Belum pernah</span>`
       : `<span class="badge ok">Sudah ✓</span>`;
     const lastLine = st.last
-      ? `<span class="last">✓ Terakhir: ${pretty(st.last.date)}</span>${st.last.seq ? ` · <b>Maintenance ke-${st.last.seq} dari ${totals[m.hospital || H_MAYAPADA] || "?"}</b>` : ""} · berikutnya ${pretty(st.next)} (${st.state === "due" ? "lewat " + st.days + " hari" : st.days + " hari lagi"})`
+      ? `<span class="last">✓ Terakhir: ${pretty(st.last.date)}</span>${st.last.seq ? `&nbsp;· <b>Maintenance ke-${st.last.seq} dari ${totals[m.hospital || H_MAYAPADA] || "?"}</b>` : ""}&nbsp;· berikutnya ${pretty(st.next)} (${st.state === "due" ? "lewat " + st.days + " hari" : st.days + " hari lagi"})`
       : `Belum ada catatan maintenance`;
     const hist = openHistory.has(m.id) ? `<div class="hist">
       <div class="hinfo"><span>Catatan mesin: <b>${m.note ? esc(m.note) : "—"}</b></span><button class="mini" data-note="${m.id}">Ubah Catatan</button></div>
       ${
-      myLogs.length ? myLogs.map(l => `<div class="hrow"><div class="hmain">${l.seq ? `<div class="hseq2">Maintenance ke-${l.seq} dari ${totals[m.hospital || H_MAYAPADA] || "?"}</div>` : ""}<div class="hd">${pretty(l.date)}${l.note ? ` · ${esc(l.note)}` : ""}</div><div class="hnext">Jadwal berikutnya: ${pretty(addDays(l.date, CYCLE_DAYS))}</div></div>${l.seq ? `<button class="seqedit" data-seq="${l.id}">Ubah Nomor</button>` : ""}<button class="del" data-del="${l.id}" title="Hapus catatan ini">✕</button></div>`).join("")
+      myLogs.length ? myLogs.map(l => `<div class="hrow"><div class="hmain">${l.seq ? `<div class="hseq2">Maintenance ke-${l.seq} dari ${totals[m.hospital || H_MAYAPADA] || "?"}</div>` : ""}<div class="hd">${pretty(l.date)}${l.note ? `&nbsp;· ${esc(l.note)}` : ""}</div><div class="hnext">Jadwal berikutnya: ${pretty(addDays(l.date, CYCLE_DAYS))}</div></div>${l.seq ? `<button class="seqedit" data-seq="${l.id}">Ubah Nomor</button>` : ""}<button class="del" data-del="${l.id}" title="Hapus catatan ini">✕</button></div>`).join("")
       : `<div class="hrow"><span class="hn">Belum ada riwayat.</span></div>`
     }</div>` : "";
     return `<div class="mcard ${st.state === "due" ? "due" : st.state === "ok" ? "done" : ""}${selectedMachine && selectedMachine.id === m.id ? " selected" : ""}">
-      <div class="r1"><div><div class="serial">${esc(m.serial)}</div><div class="model">${esc(m.model)}${m.year ? " · Tahun " + esc(m.year) : ""} · ${esc(shortH(m.hospital || H_MAYAPADA))}</div></div>${badge}</div>
-      <div class="meta">${lastLine}<br>${myLogs.length} catatan</div>
+      <div class="r1"><div><div class="serial">${esc(m.serial)}</div><div class="model"><span class="seg">${esc(m.model)}</span>${m.year ? ` <span class="seg">Tahun ${esc(m.year)}</span>` : ""}</div></div>${badge}</div>
+      <div class="meta">${lastLine}${myLogs.length ? `<br>${myLogs.length} catatan` : ""}</div>
       ${m.note ? `<div class="notebox">📌 ${esc(m.note)}</div>` : ""}
       <div class="acts">
         <button class="primary" data-record="${m.id}">Catat Maintenance</button>
@@ -862,10 +890,10 @@ function renderList(){
   const shown = statusFilter === "ok" ? done : due;
   renderStatusToggle(due.length, done.length);
   if(!shown.length){ wrap.innerHTML = `<div class="panel empty">${statusFilter === "ok" ? "Tidak ada mesin yang sudah di-maintenance di sini." : "Tidak ada mesin yang belum di-maintenance di sini."}</div>`; return; }
-  const typeSection = (title, items, key) => {
-    if(!items.length) return "";
-    /* Halaman kembali ke 1 bila isi kelompok berubah (ganti RS, ganti
-       status, mesin ditambah/dihapus/dicatat, ganti filter model). */
+  /* Halaman kembali ke 1 bila isi kelompok berubah (ganti RS, ganti
+     status, mesin ditambah/dihapus/dicatat, ganti filter model). */
+  const pageFor = (items, key) => {
+    if(!items.length) return {pageItems: [], nav: ""};
     const fp = items.map(m => m.id).sort().join(",");
     if(pageFingerprint[key] !== fp){ pageFingerprint[key] = fp; pageByModel[key] = 1; }
     const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
@@ -874,15 +902,37 @@ function renderList(){
     if(page < 1) page = 1;
     pageByModel[key] = page;
     const pageItems = items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-    const nav = totalPages > 1 ? `<div class="pagenav">${page > 1 ? `<button type="button" data-page-model="${key}" data-page-dir="-1">‹ Sebelumnya</button>` : `<span></span>`}<span class="pagenum">Hal. ${page} dari ${totalPages}</span>${page < totalPages ? `<button type="button" data-page-model="${key}" data-page-dir="1">Berikutnya ›</button>` : `<span></span>`}</div>` : "";
-    return `<section class="typegroup"><div class="typehead"><h2>${title}</h2><span class="count">${items.length}</span></div>${pageItems.map(machineCard).join("")}${nav}</section>`;
+    const nav = totalPages > 1 ? `<div class="pagenav">${page > 1 ? `<button type="button" data-page-model="${key}" data-page-dir="-1"><span class="lbl-long">‹ Sebelumnya</span><span class="lbl-short">‹ Mundur</span></button>` : `<span></span>`}<span class="pagenum">Hal. ${page} dari ${totalPages}</span>${page < totalPages ? `<button type="button" data-page-model="${key}" data-page-dir="1"><span class="lbl-long">Berikutnya ›</span><span class="lbl-short">Maju ›</span></button>` : `<span></span>`}</div>` : "";
+    return {pageItems, nav};
   };
   const sws = shown.filter(m => m.model === "SWS-6000A");
   const joy = shown.filter(m => m.model === "JOYHEAL");
   const other = shown.filter(m => m.model !== "SWS-6000A" && m.model !== "JOYHEAL");
-  const inner = `${typeSection("SWS 6000A", sws, "SWS-6000A")}${typeSection("Joyheal", joy, "JOYHEAL")}${typeSection("Model Lain", other, "other")}`;
+  /* SWS dan Joyheal berpasangan baris demi baris dalam satu grid yang
+     sama: kartu sebaris di kiri dan kanan sama tinggi, baris-barisnya
+     mulai dan berakhir pada garis yang sama. Sel kosong menjaga pasangan
+     bila satu kelompok lebih sedikit kartunya di halaman ini. */
+  const swsP = pageFor(sws, "SWS-6000A");
+  const joyP = pageFor(joy, "JOYHEAL");
+  const emptyCell = `<div class="cell-empty" aria-hidden="true"></div>`;
+  const noCard = `<div class="panel empty">Tidak ada mesin.</div>`;
+  let inner = "";
+  if(sws.length || joy.length){
+    let cells = `<div class="typehead"><h2>SWS 6000A</h2><span class="count">${sws.length}</span></div><div class="typehead"><h2>Joyheal</h2><span class="count">${joy.length}</span></div>`;
+    const rows = Math.max(swsP.pageItems.length, joyP.pageItems.length);
+    for(let i = 0; i < rows; i++){
+      cells += swsP.pageItems[i] ? machineCard(swsP.pageItems[i]) : (i === 0 && !swsP.pageItems.length ? noCard : emptyCell);
+      cells += joyP.pageItems[i] ? machineCard(joyP.pageItems[i]) : (i === 0 && !joyP.pageItems.length ? noCard : emptyCell);
+    }
+    cells += (swsP.nav || emptyCell) + (joyP.nav || emptyCell);
+    inner = `<div class="typecols">${cells}</div>`;
+  }
+  if(other.length){
+    const oP = pageFor(other, "other");
+    inner += `<section class="typegroup"><div class="typehead"><h2>Model Lain</h2><span class="count">${other.length}</span></div>${oP.pageItems.map(machineCard).join("")}${oP.nav}</section>`;
+  }
   wrap.innerHTML = inner.trim()
-    ? `<div class="typecols">${inner}</div>`
+    ? inner
     : `<div class="panel empty">${statusFilter === "ok" ? "Tidak ada mesin yang sudah di-maintenance di sini." : "Tidak ada mesin yang belum di-maintenance di sini."}</div>`;
 
   /* Tombol halaman tiap kelompok berdiri sendiri (SWS tidak ikut berubah
