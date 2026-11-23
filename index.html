@@ -171,6 +171,9 @@
   .mcard.done{border-left-color:var(--green)}
   .mcard.due{border-left-color:var(--red)}
   .mcard.selected{outline:3px solid var(--navy); outline-offset:2px; background:#eef4fb}
+  .mcard.delpreview{cursor:pointer; border:2px solid #e5b4b0; border-left:6px solid var(--red); background:#fdf0ef; margin-top:10px}
+  .mcard.delpreview .dlabel{font-size:12px; font-weight:700; color:#b3261e; margin-bottom:7px}
+  .mcard.delpreview.selected{outline:3px solid #b3261e; outline-offset:2px; background:#fbe3e1}
   .mcard .r1{display:flex; align-items:flex-start; gap:9px}
   .mcard .serial{font-weight:800; font-size:16.5px; color:var(--navy); word-break:break-all}
   .mcard .model{font-size:12.5px; color:var(--muted); margin-top:1px}
@@ -339,6 +342,7 @@
         <label for="deleteSnInput">Ketik nomor seri mesin yang mau dihapus</label>
         <input id="deleteSnInput" type="text" autocomplete="off" placeholder="Contoh: JH10239101010A" style="text-transform:uppercase">
         <div class="suggest" id="deleteSuggestBox"></div>
+        <div id="deletePreviewBox"></div>
         <button class="btndel" id="deleteConfirmBtn" type="button" style="width:100%; margin-top:10px">Hapus Mesin Ini</button>
       </div>
     </section>
@@ -601,9 +605,39 @@ function renderDeleteSuggestions(){
       b.addEventListener("click", () => {
         $("deleteSnInput").value = m.serial;
         clearDeleteSuggestions();
+        renderDeletePreview();
       });
       box.appendChild(b);
     });
+}
+/* ---------- pratinjau mesin di kotak hapus: muncul saat SN lengkap/cocok ---------- */
+let deleteSelected = null;
+function clearDeletePreview(){ $("deletePreviewBox").innerHTML = ""; deleteSelected = null; }
+function renderDeletePreview(){
+  const box = $("deletePreviewBox");
+  const q = $("deleteSnInput").value.trim().toUpperCase();
+  const m = q ? machines.find(x => x.serial.toUpperCase() === q && (x.hospital || H_MAYAPADA) === activeHospital) : null;
+  box.innerHTML = "";
+  if(!m){ deleteSelected = null; return; }
+  if(!deleteSelected || deleteSelected.id !== m.id) deleteSelected = null;
+  const st = machineStatus(m);
+  const n = logsOf(m.id).length;
+  const badge = st.state === "due" ? `<span class="badge due">Waktunya maintenance</span>`
+    : st.state === "new" ? `<span class="badge new">Belum pernah</span>`
+    : `<span class="badge ok">Sudah ✓</span>`;
+  const statusTxt = st.state === "ok" ? "Sudah di-Maintenance" : "Belum di-Maintenance";
+  const lastTxt = st.last ? pretty(st.last.date) : "Belum pernah";
+  const card = document.createElement("div");
+  card.className = "mcard delpreview" + (deleteSelected && deleteSelected.id === m.id ? " selected" : "");
+  card.setAttribute("role", "button");
+  card.setAttribute("tabindex", "0");
+  card.innerHTML = `<div class="dlabel">Mesin yang akan dihapus — ketuk untuk memilih</div>
+    <div class="r1"><div><div class="serial">${esc(m.serial)}</div><div class="model">${esc(m.model)}${m.year ? " · Tahun " + esc(m.year) : ""} · ${esc(shortH(m.hospital || H_MAYAPADA))}</div></div>${badge}</div>
+    <div class="meta">Status: <b>${statusTxt}</b><br>Maintenance terakhir: ${lastTxt}<br>${n} catatan riwayat</div>`;
+  const select = () => { deleteSelected = m; $("deleteSnInput").value = m.serial; renderDeletePreview(); };
+  card.addEventListener("click", select);
+  card.addEventListener("keydown", (ev) => { if(ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); select(); } });
+  box.appendChild(card);
 }
 function renderRecog(){
   const box = $("recogBox");
@@ -847,6 +881,7 @@ function showView(v){
 }
 function goDash(opts = {}){
   clearDeleteSuggestions();
+  clearDeletePreview();
   if(opts.hospital){ activeHospital = opts.hospital; localStorage.setItem("pelacak_hospital", activeHospital); }
   modelFilterVal = opts.model || "";
   showView("dash");
@@ -1115,14 +1150,15 @@ $("recordBtn").addEventListener("click", async () => {
 $("deleteBtn").addEventListener("click", () => {
   const box = $("deleteBox");
   box.classList.toggle("hidden");
-  if(box.classList.contains("hidden")){ $("deleteSnInput").value = ""; clearDeleteSuggestions(); }
+  if(box.classList.contains("hidden")){ $("deleteSnInput").value = ""; clearDeleteSuggestions(); clearDeletePreview(); }
   else $("deleteSnInput").focus();
 });
-$("deleteSnInput").addEventListener("input", renderDeleteSuggestions);
+$("deleteSnInput").addEventListener("input", () => { renderDeleteSuggestions(); renderDeletePreview(); });
 $("deleteConfirmBtn").addEventListener("click", async () => {
   const typed = $("deleteSnInput").value.trim().toUpperCase();
   if(!typed){ toast("Ketik dulu nomor seri mesin yang mau dihapus"); return; }
-  const m = machines.find(x => x.serial.toUpperCase() === typed && (x.hospital || H_MAYAPADA) === activeHospital);
+  const m = (deleteSelected && deleteSelected.serial.toUpperCase() === typed) ? deleteSelected
+    : machines.find(x => x.serial.toUpperCase() === typed && (x.hospital || H_MAYAPADA) === activeHospital);
   if(!m){ toast(`Nomor seri tidak ditemukan di ${shortH(activeHospital)} ini`); return; }
   const n = logsOf(m.id).length;
   const pesan = `Hapus mesin ${m.serial}?\n\nModel: ${m.model}${m.year ? " · Tahun " + m.year : ""}\nRumah sakit: ${m.hospital || H_MAYAPADA}`
@@ -1137,6 +1173,7 @@ $("deleteConfirmBtn").addEventListener("click", async () => {
     if(selectedMachine && selectedMachine.id === m.id){ selectedMachine = null; $("snInput").value = ""; }
     $("deleteSnInput").value = "";
     clearDeleteSuggestions();
+    clearDeletePreview();
     $("deleteBox").classList.add("hidden");
     renderAll(); toast("Mesin " + m.serial + " dihapus");
   }catch(e){ toast("Gagal menghapus: " + e.message); }
