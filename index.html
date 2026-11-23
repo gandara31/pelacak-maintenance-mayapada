@@ -565,7 +565,7 @@ function applyState(s){
     filesHospital = s.filesHospital || "";
     filesOpen = new Set();
   }
-  revokeAllFileBlobUrls();
+  closeSidebar(); // ganti tampilan: drawer tidak boleh tertinggal terbuka menutupi tampilan baru
   showView(s.view);
   if(s.view === "deleted") refreshDeleted();
   else if(s.view === "added") refreshAdded();
@@ -593,6 +593,14 @@ window.addEventListener("popstate", (ev) => {
   if(exiting){
     if(s && s.view){ setTimeout(() => history.back(), 0); }
     else { exiting = false; }
+    return;
+  }
+  // Drawer sedang terbuka: Back menutup drawer dulu (satu langkah),
+  // tampilan tidak pindah. Riwayat dikembalikan seperti semula supaya
+  // tampilan dan riwayat tetap selaras (Back sudah menggeser satu entri).
+  if($("sidebar").classList.contains("open")){
+    closeSidebar();
+    try{ history.pushState(currentNavState(), ""); }catch(e){}
     return;
   }
   // Back kedua dalam 2 detik setelah pesan keluar.
@@ -1063,10 +1071,11 @@ function renderFiles(){
   list.forEach(f => {
     const open = filesOpen.has(f.id);
     const isImg = (f.mime || "").startsWith("image/");
+    const isPdf = isPdfFile(f);
     const card = document.createElement("div");
     card.className = "mcard" + (open ? " selected" : "");
     card.innerHTML = `<div class="r1"><div style="min-width:0"><div class="serial" style="word-break:break-all">${esc(f.name)}</div><div class="model">${fmtSize(f.size)} · ${prettyDateTime(f.uploaded_at)}</div></div></div>
-      <div class="meta">Ketuk untuk ${open ? "sembunyikan" : "lihat"}${isImg ? " pratinjau" : " info file"}</div>
+      <div class="meta">Ketuk untuk ${open ? "sembunyikan" : "lihat"}${isImg ? " pratinjau" : isPdf ? " PDF di tab baru" : " info file"}</div>
       <div class="acts">
         <button type="button" class="primary" data-act="view">${open ? "Tutup" : "Lihat"}</button>
         <button type="button" data-act="dl">Unduh</button>
@@ -1081,20 +1090,16 @@ function renderFiles(){
     box.appendChild(card);
   });
 }
-/* ---------- pratinjau file: gambar dan PDF tampil dokumennya, jenis lain info file ---------- */
-let fileBlobUrls = {}; // id file -> blob URL untuk pratinjau PDF (dibuat dari base64 yang sudah dimuat)
-function fileBlobUrlFor(f){
-  if(fileBlobUrls[f.id]) return fileBlobUrls[f.id];
+/* ---------- pratinjau file: gambar tampil di aplikasi, PDF dibuka di tab baru, jenis lain info file ---------- */
+// Blob URL segar untuk membuka PDF di tab baru. Dibebaskan setelah 60 detik —
+// penampil PDF sudah selesai memuat dokumennya jauh sebelum itu.
+function pdfBlobUrl(f){
   const data = fileDataCache[f.id] || "";
   const bytes = Uint8Array.from(atob(data), c => c.charCodeAt(0));
-  const url = URL.createObjectURL(new Blob([bytes], {type: f.mime || "application/pdf"}));
-  fileBlobUrls[f.id] = url;
+  const url = URL.createObjectURL(new Blob([bytes], {type: "application/pdf"}));
+  setTimeout(() => { try{ URL.revokeObjectURL(url); }catch(e){} }, 60000);
   return url;
 }
-function revokeFileBlobUrl(id){
-  if(fileBlobUrls[id]){ try{ URL.revokeObjectURL(fileBlobUrls[id]); }catch(e){} delete fileBlobUrls[id]; }
-}
-function revokeAllFileBlobUrls(){ Object.keys(fileBlobUrls).forEach(revokeFileBlobUrl); }
 function isPdfFile(f){
   return (f.mime || "") === "application/pdf" || /\.pdf$/i.test(f.name || "");
 }
@@ -1109,30 +1114,49 @@ function renderFilePreview(f){
     img.src = `data:${f.mime};base64,${data}`;
     img.alt = f.name;
     wrap.appendChild(img);
-  } else if(isPdf && data){
-    // PDF tampil langsung dokumennya (penampil PDF bawaan Chrome) lewat blob URL —
-    // lebih andal di HP Android daripada data URL.
-    const frame = document.createElement("iframe");
-    frame.src = fileBlobUrlFor(f);
-    frame.title = f.name;
-    wrap.appendChild(frame);
   }
+  // PDF dibuka di tab browser baru (penampil PDF bawaan Chrome HP), bukan
+  // iframe di dalam aplikasi — iframe + blob URL tidak jalan di aplikasi terpasang.
   // Info file selalu ada di bawah pratinjau sebagai pelengkap (bukan isi utama).
   const info = document.createElement("div");
   info.className = "finfo";
-  if((isImg || isPdf) && data) info.style.marginTop = "10px";
-  info.innerHTML = `<b>${esc(f.name)}</b><br>Jenis: ${esc(f.mime || "-")}<br>Ukuran: ${fmtSize(f.size)}<br>Diunggah: ${prettyDateTime(f.uploaded_at)}${f.uploaded_by ? "<br>Oleh: " + esc(f.uploaded_by) : ""}${(!isImg && !isPdf) ? "<br><br>Pratinjau tidak tersedia untuk jenis file ini — unduh untuk membukanya." : ""}`;
+  if(isImg && data) info.style.marginTop = "10px";
+  info.innerHTML = `<b>${esc(f.name)}</b><br>Jenis: ${esc(f.mime || "-")}<br>Ukuran: ${fmtSize(f.size)}<br>Diunggah: ${prettyDateTime(f.uploaded_at)}${f.uploaded_by ? "<br>Oleh: " + esc(f.uploaded_by) : ""}${isPdf ? "<br>PDF dibuka di tab baru." : ""}${(!isImg && !isPdf) ? "<br><br>Pratinjau tidak tersedia untuk jenis file ini — unduh untuk membukanya." : ""}`;
   wrap.appendChild(info);
   return wrap;
 }
 async function toggleFilePreview(f){
-  if(filesOpen.has(f.id)){ filesOpen.delete(f.id); revokeFileBlobUrl(f.id); renderFiles(); return; }
+  if(filesOpen.has(f.id)){ filesOpen.delete(f.id); renderFiles(); return; }
+  // PDF: buka dokumennya di tab browser baru (penampil PDF bawaan Chrome HP).
+  // window.open harus dipanggil SEBELUM await pertama supaya tidak diblokir
+  // pemblokir pop-up: bila datanya belum dimuat, buka dulu tab kosong lalu
+  // arahkan ke blob URL setelah datanya tiba.
+  const isPdf = isPdfFile(f);
+  let pdfWin = null, pdfWinBlocked = false;
+  if(isPdf){
+    if(fileDataCache[f.id]){
+      pdfWin = window.open(pdfBlobUrl(f), "_blank");
+      if(!pdfWin) pdfWinBlocked = true;
+    } else {
+      pdfWin = window.open("about:blank", "_blank");
+      if(!pdfWin) pdfWinBlocked = true;
+    }
+  }
   if(!fileDataCache[f.id]){
     try{
       const rows = await rest(`/app_files?select=data&id=eq.${f.id}`);
       if(!rows || !rows.length) throw new Error("File tidak ditemukan");
       fileDataCache[f.id] = rows[0].data || "";
-    }catch(e){ toast("Gagal membuka file: " + e.message); return; }
+    }catch(e){
+      if(pdfWin){ try{ pdfWin.close(); }catch(_){} }
+      toast("Gagal membuka file: " + e.message); return;
+    }
+    if(isPdf && pdfWin){
+      try{ pdfWin.location.href = pdfBlobUrl(f); }catch(e){}
+    }
+  }
+  if(isPdf && pdfWinBlocked){
+    toast("Tidak bisa membuka PDF, ketuk Unduh untuk mengunduhnya");
   }
   filesOpen.add(f.id);
   renderFiles();
