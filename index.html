@@ -280,6 +280,7 @@
     <button type="button" class="menuitem active" data-h="Mayapada Hospital Bogor"><span class="dot"></span>RS Mayapada</button>
     <button type="button" class="menuitem" data-h="RS PMI"><span class="dot"></span>RS PMI</button>
     <button type="button" class="menuitem" data-h="RSUD Leuwiliang"><span class="dot"></span>RSUD Leuwiliang</button>
+    <button type="button" class="menuitem" id="deletedMenuBtn"><span class="dot"></span>Riwayat Dihapus</button>
     <button type="button" class="menuitem" id="addMenuBtn"><span class="dot"></span>Tambah Mesin</button>
     <div class="side-sep"></div>
     <button type="button" class="menuitem" id="logoutMenuBtn"><span class="dot"></span>Logout</button>
@@ -390,6 +391,15 @@
       <button class="btnmain" id="addBtn" type="button" style="background:var(--navy)">Tambah Mesin</button>
     </section>
   </main>
+
+  <!-- ===== RIWAYAT DIHAPUS (tampilan sendiri lewat menu) ===== -->
+  <main id="deletedMain" class="hidden">
+    <section class="panel">
+      <h2>Riwayat Dihapus</h2>
+      <p class="hint">Mesin yang sudah dihapus beserta riwayatnya. Hanya untuk dilihat — penghapusan yang terjadi sebelum fitur ini dibuat tidak tercatat di sini.</p>
+      <div id="deletedList"></div>
+    </section>
+  </main>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -405,6 +415,7 @@ const $ = (id) => document.getElementById(id);
 let session = null;          // {access_token, refresh_token, expires_at}
 let machines = [];           // daftar mesin
 let logs = [];               // semua riwayat
+let deleted = [];            // arsip mesin yang sudah dihapus (tabel deleted_machines)
 let selectedMachine = null;  // mesin yang dikenali untuk pencatatan
 let selectedTech = null;     // Dena / Mariyanes — wajib dipilih sebelum mencatat
 function updateRecordBtn(){ $("recordBtn").disabled = !selectedMachine || !selectedTech; }
@@ -506,6 +517,8 @@ async function loadData(){
   machines = await rest("/machines?select=*&order=serial.asc");
   machines.forEach(m => { if(!m.hospital) m.hospital = H_MAYAPADA; });
   logs = await rest("/maintenance_logs?select=*&order=date.desc,created_at.desc");
+  try{ deleted = await rest("/deleted_machines?select=*&order=deleted_at.desc"); }
+  catch(e){ deleted = []; /* arsip tak terbaca: daftar arsip tampil kosong */ }
   try{
     const ss = await rest("/settings?select=key,value");
     (ss || []).forEach(r => {
@@ -671,6 +684,64 @@ function renderDeleteHistory(m){
   }
   wrap.innerHTML = html;
   return wrap;
+}
+/* ---------- arsip mesin yang dihapus (tabel deleted_machines, read-only) ---------- */
+let deletedOpen = new Set(); // id arsip yang riwayatnya sedang dibuka
+function prettyDateTime(ts){
+  if(!ts) return "-";
+  try{
+    return new Date(ts).toLocaleString("id-ID", {timeZone: "Asia/Jakarta", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit"});
+  }catch(e){ return String(ts).slice(0, 10); }
+}
+function sessionEmail(){
+  try{
+    const t = session && session.access_token;
+    if(!t) return null;
+    const p = JSON.parse(atob(t.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return p.email || null;
+  }catch(e){ return null; }
+}
+async function refreshDeleted(){
+  try{ deleted = await rest("/deleted_machines?select=*&order=deleted_at.desc"); }
+  catch(e){ toast("Gagal memuat arsip: " + e.message); }
+  renderDeletedList();
+}
+function renderDeletedHistory(d){
+  const wrap = document.createElement("div");
+  wrap.className = "delhist";
+  const myLogs = (d.logs || []).slice().sort((a, b) => ((b.date || "") + (b.created_at || "")) < ((a.date || "") + (a.created_at || "")) ? -1 : 1);
+  let html = `<div class="hlabel">Riwayat maintenance${myLogs.length ? ` (${myLogs.length} catatan)` : ""}</div>`;
+  if(!myLogs.length){
+    html += `<div class="hempty">Belum punya catatan riwayat</div>`;
+  } else {
+    html += myLogs.map(l => `<div class="hrow2"><div class="hd2">${pretty(l.date)}${l.seq ? " · Maintenance ke-" + l.seq : ""}</div>${l.note ? `<div class="hn2">${esc(l.note)}</div>` : ""}</div>`).join("");
+  }
+  wrap.innerHTML = html;
+  return wrap;
+}
+function renderDeletedList(){
+  const box = $("deletedList");
+  if(!box) return;
+  box.innerHTML = "";
+  if(!deleted.length){
+    box.innerHTML = `<div class="panel empty">Belum ada mesin yang dihapus.</div>`;
+    return;
+  }
+  deleted.forEach(d => {
+    const n = (d.logs || []).length;
+    const open = deletedOpen.has(d.id);
+    const card = document.createElement("div");
+    card.className = "mcard" + (open ? " selected" : "");
+    card.setAttribute("role", "button");
+    card.setAttribute("tabindex", "0");
+    card.innerHTML = `<div class="r1"><div><div class="serial">${esc(d.serial)}</div><div class="model">${esc(d.model)}${d.year ? " · Tahun " + esc(d.year) : ""} · ${esc(shortH(d.hospital || H_MAYAPADA))}</div></div><span class="badge">Dihapus</span></div>
+      <div class="meta">Dihapus: ${prettyDateTime(d.deleted_at)}<br>${n} catatan riwayat · ketuk untuk ${open ? "sembunyikan" : "lihat"} riwayat</div>`;
+    const toggle = () => { if(deletedOpen.has(d.id)) deletedOpen.delete(d.id); else deletedOpen.add(d.id); renderDeletedList(); };
+    card.addEventListener("click", toggle);
+    card.addEventListener("keydown", (ev) => { if(ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); toggle(); } });
+    box.appendChild(card);
+    if(open) box.appendChild(renderDeletedHistory(d));
+  });
 }
 function renderRecog(){
   const box = $("recogBox");
@@ -889,6 +960,11 @@ function renderAll(){
     $("hdrHospital").textContent = "Tambah Mesin";
     document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
     $("addMenuBtn").classList.add("active");
+  } else if(view === "deleted"){
+    $("hdrHospital").textContent = "Riwayat Dihapus";
+    document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
+    $("deletedMenuBtn").classList.add("active");
+    renderDeletedList();
   }
 }
 
@@ -898,6 +974,7 @@ function showView(v){
   $("homeView").classList.toggle("hidden", v !== "home");
   $("dashMain").classList.toggle("hidden", v !== "dash");
   $("addMain").classList.toggle("hidden", v !== "add");
+  $("deletedMain").classList.toggle("hidden", v !== "deleted");
   if(v === "home"){
     applyHomeOrder();
     $("hdrHospital").textContent = "Beranda";
@@ -907,6 +984,11 @@ function showView(v){
     $("hdrHospital").textContent = "Tambah Mesin";
     document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
     $("addMenuBtn").classList.add("active");
+  } else if(v === "deleted"){
+    $("hdrHospital").textContent = "Riwayat Dihapus";
+    document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
+    $("deletedMenuBtn").classList.add("active");
+    renderDeletedList();
   } else {
     syncHospitalTabs();
   }
@@ -1012,6 +1094,7 @@ $("logoutMenuBtn").addEventListener("click", () => { closeSidebar(); doLogout();
 /* ---------- tampilan awal (beranda bergambar) ---------- */
 $("homeMenuBtn").addEventListener("click", () => { showView("home"); renderAll(); closeSidebar(); });
 $("addMenuBtn").addEventListener("click", () => { showView("add"); renderAll(); closeSidebar(); });
+$("deletedMenuBtn").addEventListener("click", () => { showView("deleted"); closeSidebar(); refreshDeleted(); });
 /* ---------- Beranda: seret foto untuk menukar posisi (tekan-tahan lalu seret) ---------- */
 const HOME_CARDS = {sws: $("homeSws"), joy: $("homeJoy")};
 const HOME_ORDER_KEY = "pelacak_home_order";
@@ -1199,7 +1282,18 @@ $("deleteConfirmBtn").addEventListener("click", async () => {
     + "\n\nTindakan ini tidak bisa dibatalkan.";
   if(!confirm(pesan)) return;
   const btn = $("deleteConfirmBtn"); btn.disabled = true;
+  let archived = null;
   try{
+    // simpan arsip dulu — bila arsip gagal, penghapusan dibatalkan
+    const myLogs = logsOf(m.id).slice().sort((a, b) => ((b.date || "") + (b.created_at || "")) < ((a.date || "") + (a.created_at || "")) ? -1 : 1);
+    const rows = await rest("/deleted_machines", {method: "POST", body: JSON.stringify({
+      serial: m.serial, model: m.model, hospital: m.hospital || H_MAYAPADA,
+      year: m.year == null ? null : m.year, note: m.note || "",
+      deleted_by: sessionEmail(),
+      logs: myLogs.map(l => ({date: l.date, note: l.note || "", seq: l.seq == null ? null : l.seq, round: l.round || 1, created_at: l.created_at || null}))
+    })});
+    archived = rows && rows[0];
+    if(!archived) throw new Error("Arsip tidak tersimpan");
     await rest(`/machines?id=eq.${m.id}`, {method: "DELETE"});
     machines = machines.filter(x => x.id !== m.id);
     logs = logs.filter(l => l.machine_id !== m.id);
@@ -1208,8 +1302,13 @@ $("deleteConfirmBtn").addEventListener("click", async () => {
     clearDeleteSuggestions();
     clearDeletePreview();
     $("deleteBox").classList.add("hidden");
+    deleted.unshift(archived);
+    deleted.sort((a, b) => (a.deleted_at < b.deleted_at ? 1 : -1));
     renderAll(); toast("Mesin " + m.serial + " dihapus");
-  }catch(e){ toast("Gagal menghapus: " + e.message); }
+  }catch(e){
+    if(archived){ try{ await rest(`/deleted_machines?id=eq.${archived.id}`, {method: "DELETE"}); }catch(_){} }
+    toast(archived ? ("Gagal menghapus: " + e.message) : ("Gagal menyimpan arsip: " + e.message + ". Mesin tidak dihapus."));
+  }
   btn.disabled = false;
 });
 
