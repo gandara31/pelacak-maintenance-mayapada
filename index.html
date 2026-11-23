@@ -134,35 +134,31 @@
   .typehead{display:flex; align-items:center; gap:8px; margin:2px 0 10px; padding-bottom:8px; border-bottom:2px solid var(--navy); min-height:31px}
   .typehead h2{margin:0; font-size:16px; color:var(--navy); white-space:nowrap}
   .typehead .count{flex:none; background:var(--navy); color:#fff; font-size:12px; font-weight:700; border-radius:999px; padding:2px 9px}
-  .colhead{display:flex; align-items:center; gap:6px; margin:2px 0 10px; min-height:32px}
-  .colhead h3{margin:0; font-size:16px; color:var(--navy); white-space:nowrap}
-  .colhead .count{flex:none; background:var(--navy); color:#fff; font-size:12px; font-weight:700; border-radius:999px; padding:2px 9px}
-  .colhead.due h3{color:var(--red)}
-  .colhead.due .count{background:var(--red)}
-  .colhead.ok h3{color:#146c3a}
-  .colhead.ok .count{background:var(--green)}
-  /* Judul kolom bisa diklik sebagai filter status (Belum / Sudah) */
-  button.colhead{cursor:pointer; background:none; border:0; padding:4px 6px; width:100%; text-align:left; font:inherit; border-radius:8px}
-  .colhead.active.due{background:#fbd9d7; box-shadow:inset 0 0 0 2px #d92d20}
-  .colhead.active.ok{background:#cdeed6; box-shadow:inset 0 0 0 2px #146c3a}
-  .colhead.active h3{text-decoration:underline}
-  .subcols.single{grid-template-columns:1fr}
-  .filterbar{display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:#eef4fb; border:1px solid #cfe0f2; color:var(--navy); border-radius:10px; padding:8px 10px; margin:0 0 12px; font-size:13.5px; line-height:1.4}
-  .filterbar button{border:1px solid var(--navy); background:#fff; color:var(--navy); border-radius:999px; padding:4px 10px; font-size:12.5px; font-weight:700; cursor:pointer}
+  /* Sakelar status di atas daftar: Belum / Sudah (dua chip dengan jumlah) */
+  .statustoggle{display:flex; gap:8px; margin:0 0 12px}
+  .statustoggle button{flex:1; padding:10px 8px; border-radius:10px; border:1.5px solid var(--line); background:#f6f8fb; font-weight:700; font-size:14px; color:var(--navy); cursor:pointer}
+  .statustoggle button .count{flex:none; background:var(--navy); color:#fff; font-size:11.5px; font-weight:700; border-radius:999px; padding:2px 8px; margin-left:5px}
+  .statustoggle button.due.active{background:#fbd9d7; border-color:#d92d20; color:var(--red)}
+  .statustoggle button.due.active .count{background:var(--red)}
+  .statustoggle button.ok.active{background:#cdeed6; border-color:#146c3a; color:#146c3a}
+  .statustoggle button.ok.active .count{background:var(--green)}
+  /* Navigasi halaman di bawah tiap kelompok tipe (10 mesin per halaman) */
+  .pagenav{display:flex; align-items:center; justify-content:space-between; gap:8px; margin:2px 0 6px}
+  .pagenav button{border:1.5px solid var(--navy); background:#fff; color:var(--navy); border-radius:9px; padding:8px 12px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap}
+  .pagenav .pagenum{font-size:12.5px; font-weight:700; color:var(--muted); white-space:nowrap}
   @media (min-width:861px){ .typecols{gap:18px} }
-  /* ---------- Sudah/Belum berdampingan di dalam tiap kelompok tipe ---------- */
-  .subcols{display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:start}
-  .subcols .colhead{flex-wrap:nowrap; gap:5px; padding:4px 4px; min-height:30px}
-  .subcols .colhead h3{font-size:13px}
-  .subcols .colhead .count{padding:2px 6px; font-size:11px}
-  .subcols .mcard{padding:11px}
-  .subcols .mcard .serial{font-size:14px}
-  .subcols .mcard .r1{flex-wrap:wrap}
-  .subcols .mcard .badge{margin-left:0}
-  .subcols .mcard .meta{font-size:12.5px}
-  .subcols .mcard .acts{flex-direction:column}
-  .subcols .mcard .acts button{width:100%; text-align:center; white-space:nowrap}
-  .subcols .panel.empty{padding:10px 8px; font-size:12.5px; line-height:1.45}
+  /* ---------- Kartu mesin di kolom sempit (HP: dua kelompok berdampingan) ---------- */
+  @media (max-width:860px){
+    .typecols .mcard{padding:11px}
+    .typecols .mcard .serial{font-size:14px}
+    .typecols .mcard .r1{flex-wrap:wrap}
+    .typecols .mcard .badge{margin-left:0}
+    .typecols .mcard .meta{font-size:12.5px}
+    .typecols .mcard .acts{flex-direction:column}
+    .typecols .mcard .acts button{width:100%; text-align:center; white-space:nowrap}
+    .typecols .panel.empty{padding:10px 8px; font-size:12.5px; line-height:1.45}
+    .pagenav button{padding:8px 9px; font-size:12.5px}
+  }
   /* ---------- pilihan teknisi ---------- */
   .techchips{display:flex; gap:9px; margin-top:2px}
   .techchip{flex:1; padding:11px 10px; border-radius:10px; border:1.5px solid var(--line); background:#f6f8fb; font-weight:700; color:var(--navy); font-size:14.5px; white-space:nowrap}
@@ -356,7 +352,7 @@
       </div>
     </section>
 
-    <div id="statusFilterBar" class="filterbar hidden">Menampilkan: <b id="statusFilterLabel"></b><button type="button" id="clearStatusFilter">Tampilkan semua ✕</button></div>
+    <div id="statusToggle" class="statustoggle"></div>
     <div id="machineList"></div>
   </main>
 
@@ -424,7 +420,7 @@ const H_MAYAPADA = "Mayapada Hospital Bogor";
 let activeHospital = ["Mayapada Hospital Bogor", "RS PMI", "RSUD Leuwiliang"].includes(localStorage.getItem("pelacak_hospital")) ? localStorage.getItem("pelacak_hospital") : H_MAYAPADA;
 let totals = {"Mayapada Hospital Bogor": 11, "RS PMI": 49, "RSUD Leuwiliang": 28}; // total mesin per RS, bisa diubah dari halaman Ronde
 let view = "home";       // tampilan aktif: "home" (beranda bergambar) / "dash" (tampilan normal) / "add" (tambah mesin)
-let statusFilter = null; // filter status daftar: null (semua) | "due" (hanya Belum) | "ok" (hanya Sudah) — diubah lewat klik judul kolom
+let statusFilter = "due"; // filter status daftar: "due" (hanya Belum, default) | "ok" (hanya Sudah) — diganti lewat sakelar status di atas daftar
 let modelFilterVal = ""; // filter model daftar: "" (semua) | "JOYHEAL" | "SWS-6000A" — diatur lewat ketuk gambar di Beranda (toolbar pencarian sudah dihapus)
 
 /* ---------- ingat posisi tampilan terakhir (tetap saat refresh) ---------- */
@@ -440,7 +436,7 @@ function restoreView(){
   if(!saved || !VIEW_NAMES.includes(saved.view)){ showView("home"); return; }
   if(HOSPITALS.includes(saved.hospital)) activeHospital = saved.hospital;
   modelFilterVal = ["", "JOYHEAL", "SWS-6000A"].includes(saved.model) ? saved.model : "";
-  statusFilter = (saved.status === "due" || saved.status === "ok") ? saved.status : null;
+  statusFilter = (saved.status === "ok") ? "ok" : "due";
   try{ localStorage.setItem("pelacak_hospital", activeHospital); }catch(e){}
   showView(saved.view);
 }
@@ -834,61 +830,66 @@ function machineCard(m){
     </div>`;
 }
 
-/* Bar penanda filter status di atas daftar (hanya tampil saat filter menyala). */
-function updateStatusFilterBar(){
-  const bar = $("statusFilterBar");
-  bar.classList.toggle("hidden", !statusFilter);
-  $("statusFilterLabel").textContent = statusFilter === "due" ? "Belum Maintenance" : statusFilter === "ok" ? "Sudah di-Maintenance" : "";
+/* Sakelar status di atas daftar (Belum / Sudah) + paginasi 10 per kelompok. */
+const PAGE_SIZE = 10;
+let pageByModel = {};     // halaman aktif per kelompok: {"SWS-6000A": 1, "JOYHEAL": 1, "other": 1}
+let pageFingerprint = {}; // isi daftar per kelompok saat halaman terakhir dihitung
+function renderStatusToggle(dueN, doneN){
+  const t = $("statusToggle");
+  t.innerHTML = `<button type="button" class="due${statusFilter === "due" ? " active" : ""}" data-status="due" aria-pressed="${statusFilter === "due"}">Belum<span class="count">${dueN}</span></button><button type="button" class="ok${statusFilter === "ok" ? " active" : ""}" data-status="ok" aria-pressed="${statusFilter === "ok"}">Sudah<span class="count">${doneN}</span></button>`;
+  t.querySelectorAll("[data-status]").forEach(b => b.addEventListener("click", () => {
+    const k = b.dataset.status;
+    if(statusFilter === k) return;
+    statusFilter = k;
+    saveView();
+    renderList();
+  }));
 }
 
 function renderList(){
   const list = sortedMachines();
   const wrap = $("machineList");
-  updateStatusFilterBar();
-  if(!list.length){ wrap.innerHTML = `<div class="panel empty">Tidak ada mesin di sini.</div>`; return; }
-  /* Dua kelompok tipe berdampingan (SWS 6000A | Joyheal, dikelompokkan dari
-     field model di data); di dalam tiap kelompok, Belum dan Sudah tampil
-     berdampingan (dua kolom) dengan pemisahan otomatis Sudah/Belum dari
-     tanggal: maintenance terakhir masih dalam
-     siklus 45 hari (1,5 bulan) masuk "Sudah di-Maintenance"; yang belum
-     pernah atau sudah lewat 45 hari masuk "Belum Maintenance". Dihitung
-     ulang tiap render — tanpa aksi manual, tanpa mengubah data.
-     Judul kolom bisa DIKLIK sebagai filter: klik "Belum Maintenance"
-     hanya menampilkan mesin Belum di semua kelompok tipe, klik
-     "Sudah di-Maintenance" hanya menampilkan mesin Sudah; klik lagi
-     judul yang sedang aktif (atau "Tampilkan semua") mengembalikan
-     kedua kolom. */
-  const section = (items, kind) => {
-    const head = kind === "due"
-      ? `<button type="button" class="colhead due${statusFilter === "due" ? " active" : ""}" data-status="due" aria-pressed="${statusFilter === "due"}" aria-label="Belum Maintenance" title="Ketuk untuk menampilkan hanya mesin yang belum di-maintenance"><h3>Belum</h3><span class="count">${items.length}</span></button>`
-      : `<button type="button" class="colhead ok${statusFilter === "ok" ? " active" : ""}" data-status="ok" aria-pressed="${statusFilter === "ok"}" aria-label="Sudah di-Maintenance" title="Ketuk untuk menampilkan hanya mesin yang sudah di-maintenance"><h3>Sudah</h3><span class="count">${items.length}</span></button>`;
-    const body = items.length ? items.map(machineCard).join("") : `<div class="panel empty">${kind === "due" ? "Semua sudah di-maintenance ✓" : "Belum ada mesin."}</div>`;
-    return `<section>${head}${body}</section>`;
-  };
-  const typeSection = (title, items) => {
+  /* Satu kolom per jenis mesin, SWS dan Joyheal berdampingan sejajar.
+     Daftar hanya menampilkan satu status (default Belum). Pemisahan
+     Sudah/Belum dari tanggal tidak berubah: maintenance terakhir masih
+     dalam siklus 45 hari (1,5 bulan) masuk "Sudah di-Maintenance";
+     yang belum pernah atau sudah lewat 45 hari masuk "Belum
+     Maintenance". Dihitung ulang tiap render — tanpa aksi manual,
+     tanpa mengubah data. Sakelar di atas daftar mengganti seluruh
+     daftar antara Belum saja dan Sudah saja. */
+  const done = list.filter(m => machineStatus(m).state === "ok");
+  const due = list.filter(m => machineStatus(m).state !== "ok");
+  const shown = statusFilter === "ok" ? done : due;
+  renderStatusToggle(due.length, done.length);
+  if(!shown.length){ wrap.innerHTML = `<div class="panel empty">${statusFilter === "ok" ? "Tidak ada mesin yang sudah di-maintenance di sini." : "Tidak ada mesin yang belum di-maintenance di sini."}</div>`; return; }
+  const typeSection = (title, items, key) => {
     if(!items.length) return "";
-    const done = items.filter(m => machineStatus(m).state === "ok");
-    const due = items.filter(m => machineStatus(m).state !== "ok");
-    const shown = statusFilter === "due" ? due : statusFilter === "ok" ? done : items;
-    if(!shown.length) return "";
-    const secs = [];
-    if(statusFilter !== "ok") secs.push(section(due, "due"));
-    if(statusFilter !== "due") secs.push(section(done, "ok"));
-    return `<section class="typegroup"><div class="typehead"><h2>${title}</h2><span class="count">${shown.length}</span></div><div class="subcols${secs.length === 1 ? " single" : ""}">${secs.join("")}</div></section>`;
+    /* Halaman kembali ke 1 bila isi kelompok berubah (ganti RS, ganti
+       status, mesin ditambah/dihapus/dicatat, ganti filter model). */
+    const fp = items.map(m => m.id).sort().join(",");
+    if(pageFingerprint[key] !== fp){ pageFingerprint[key] = fp; pageByModel[key] = 1; }
+    const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+    let page = pageByModel[key] || 1;
+    if(page > totalPages) page = totalPages;
+    if(page < 1) page = 1;
+    pageByModel[key] = page;
+    const pageItems = items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+    const nav = totalPages > 1 ? `<div class="pagenav">${page > 1 ? `<button type="button" data-page-model="${key}" data-page-dir="-1">‹ Sebelumnya</button>` : `<span></span>`}<span class="pagenum">Hal. ${page} dari ${totalPages}</span>${page < totalPages ? `<button type="button" data-page-model="${key}" data-page-dir="1">Berikutnya ›</button>` : `<span></span>`}</div>` : "";
+    return `<section class="typegroup"><div class="typehead"><h2>${title}</h2><span class="count">${items.length}</span></div>${pageItems.map(machineCard).join("")}${nav}</section>`;
   };
-  const sws = list.filter(m => m.model === "SWS-6000A");
-  const joy = list.filter(m => m.model === "JOYHEAL");
-  const other = list.filter(m => m.model !== "SWS-6000A" && m.model !== "JOYHEAL");
-  const inner = `${typeSection("SWS 6000A", sws)}${typeSection("Joyheal", joy)}${typeSection("Model Lain", other)}`;
+  const sws = shown.filter(m => m.model === "SWS-6000A");
+  const joy = shown.filter(m => m.model === "JOYHEAL");
+  const other = shown.filter(m => m.model !== "SWS-6000A" && m.model !== "JOYHEAL");
+  const inner = `${typeSection("SWS 6000A", sws, "SWS-6000A")}${typeSection("Joyheal", joy, "JOYHEAL")}${typeSection("Model Lain", other, "other")}`;
   wrap.innerHTML = inner.trim()
     ? `<div class="typecols">${inner}</div>`
-    : `<div class="panel empty">${statusFilter === "due" ? "Tidak ada mesin yang belum di-maintenance di sini." : statusFilter === "ok" ? "Tidak ada mesin yang sudah di-maintenance di sini." : "Tidak ada mesin di sini."}</div>`;
+    : `<div class="panel empty">${statusFilter === "ok" ? "Tidak ada mesin yang sudah di-maintenance di sini." : "Tidak ada mesin yang belum di-maintenance di sini."}</div>`;
 
-  /* Klik judul kolom = filter status (klik lagi judul yang aktif = kembali ke kedua kolom). */
-  wrap.querySelectorAll("[data-status]").forEach(b => b.addEventListener("click", () => {
-    const k = b.dataset.status;
-    statusFilter = (statusFilter === k) ? null : k;
-    saveView();
+  /* Tombol halaman tiap kelompok berdiri sendiri (SWS tidak ikut berubah
+     saat Joyheal dipencet next, dan sebaliknya). */
+  wrap.querySelectorAll("[data-page-model]").forEach(b => b.addEventListener("click", () => {
+    const k = b.dataset.pageModel;
+    pageByModel[k] = (pageByModel[k] || 1) + Number(b.dataset.pageDir);
     renderList();
   }));
 
@@ -1036,7 +1037,6 @@ $("celebrate").addEventListener("click", () => $("celebrate").classList.remove("
 
 /* ---------------- aksi ---------------- */
 $("snInput").addEventListener("input", renderSuggestions);
-$("clearStatusFilter").addEventListener("click", () => { statusFilter = null; saveView(); renderList(); });
 function openSidebar(){ $("sidebar").classList.add("open"); $("scrim").classList.add("show"); }
 function closeSidebar(){ $("sidebar").classList.remove("open"); $("scrim").classList.remove("show"); }
 $("menuBtn").addEventListener("click", () => {
