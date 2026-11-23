@@ -41,6 +41,7 @@
   .btnmain:active{background:var(--navy2)}
   .btnmain:disabled{opacity:.55}
   .linkbtn{display:block; margin:14px auto 0; background:none; border:none; color:var(--navy2); font-size:14px; text-decoration:underline}
+  .linkrow{display:flex; justify-content:center; gap:22px; flex-wrap:wrap}
   .msg{margin-top:14px; font-size:14px; padding:10px 12px; border-radius:9px; display:none}
   .msg.err{display:block; background:#fdecea; color:var(--red)}
   .msg.ok{display:block; background:var(--greenbg); color:#146c3a}
@@ -310,7 +311,23 @@
       <input id="loginPass" type="password" autocomplete="current-password" required placeholder="Kata sandi akunmu">
       <button class="btnmain" id="loginBtn" type="submit">Masuk</button>
       <div class="msg" id="loginMsg"></div>
-      <button class="linkbtn" type="button" id="forgotBtn">Lupa kata sandi?</button>
+      <div class="linkrow">
+        <button class="linkbtn" type="button" id="forgotBtn">Lupa kata sandi?</button>
+        <button class="linkbtn" type="button" id="registerBtn">Daftar</button>
+      </div>
+    </form>
+
+    <form id="registerForm" class="hidden">
+      <p class="sub" style="margin-top:6px">Buat akun baru untuk membuka pelacak ini — cukup surel dan kata sandi.</p>
+      <label for="registerEmail">Surel</label>
+      <input id="registerEmail" type="email" autocomplete="email" required placeholder="nama@surel.com">
+      <label for="registerPass">Kata Sandi</label>
+      <input id="registerPass" type="password" autocomplete="new-password" required minlength="6" placeholder="Minimal 6 huruf/angka">
+      <label for="registerPass2">Ulangi Kata Sandi</label>
+      <input id="registerPass2" type="password" autocomplete="new-password" required minlength="6" placeholder="Ketik ulang yang sama">
+      <button class="btnmain" id="registerSubmitBtn" type="submit">Daftar</button>
+      <div class="msg" id="registerMsg"></div>
+      <button class="linkbtn" type="button" id="backToLoginBtn">Sudah punya akun? Masuk</button>
     </form>
 
     <form id="recoverForm" class="hidden">
@@ -914,6 +931,7 @@ function showScreen(name){
     $("loginForm").classList.remove("hidden");
     $("recoverForm").classList.add("hidden");
     $("setpassForm").classList.add("hidden");
+    $("registerForm").classList.add("hidden");
   }
 }
 function showMsg(id, text, ok){
@@ -2293,6 +2311,36 @@ $("forgotBtn").addEventListener("click", () => {
   $("loginForm").classList.add("hidden"); $("recoverForm").classList.remove("hidden");
   $("recoverEmail").value = $("loginEmail").value;
 });
+$("registerBtn").addEventListener("click", () => {
+  $("loginForm").classList.add("hidden"); $("registerForm").classList.remove("hidden");
+});
+$("backToLoginBtn").addEventListener("click", () => showScreen("auth"));
+$("registerForm").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const email = $("registerEmail").value.trim();
+  const p1 = $("registerPass").value, p2 = $("registerPass2").value;
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ showMsg("registerMsg", "Surel tidak valid. Periksa lagi alamat surelmu.", false); return; }
+  if(p1.length < 6){ showMsg("registerMsg", "Kata sandi minimal 6 karakter.", false); return; }
+  if(p1 !== p2){ showMsg("registerMsg", "Kedua kata sandi tidak sama. Periksa lagi.", false); return; }
+  const btn = $("registerSubmitBtn"); btn.disabled = true;
+  try{
+    const d = await authApi("/signup", {email, password: p1});
+    if(d.access_token){
+      saveSession({access_token: d.access_token, refresh_token: d.refresh_token, expires_at: Date.now() + (d.expires_in||3600)*1000});
+      showScreen("app");
+      await loadData();
+    } else {
+      showScreen("auth");
+      showMsg("loginMsg", "Pendaftaran berhasil. Buka emailmu dan ketuk tautan konfirmasi, setelah itu masuk dengan email dan kata sandimu.", true);
+    }
+  }catch(e){
+    const m = (e.message || "");
+    if(/already registered|already exists/i.test(m)) showMsg("registerMsg", "Email sudah terdaftar, silakan masuk.", false);
+    else if(/Signup is disabled/i.test(m)) showMsg("registerMsg", "Pendaftaran sedang tidak aktif. Coba lagi nanti.", false);
+    else showMsg("registerMsg", "Gagal mendaftar: " + m, false);
+  }
+  btn.disabled = false;
+});
 $("backLoginBtn").addEventListener("click", () => showScreen("auth"));
 $("recoverForm").addEventListener("submit", async (ev) => {
   ev.preventDefault();
@@ -2327,12 +2375,20 @@ $("setpassForm").addEventListener("submit", async (ev) => {
 /* ---------------- mulai ---------------- */
 async function init(){
   $("dateInput").value = todayJakarta();
-  // Tautan undangan / atur ulang kata sandi dari surel tiba dengan potongan # di alamat
+  // Tautan undangan / atur ulang kata sandi / konfirmasi daftar dari surel
+  // tiba dengan potongan # di alamat
   const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   const type = hash.get("type");
   const at = hash.get("access_token");
-  if(at && (type === "invite" || type === "recovery")){
+  if(at && (type === "invite" || type === "recovery" || type === "signup")){
     saveSession({access_token: at, refresh_token: hash.get("refresh_token") || "", expires_at: Date.now() + 3600000});
+    if(type === "signup"){
+      // Konfirmasi daftar: akun sudah punya kata sandi, langsung masuk aplikasi.
+      history.replaceState(null, "", window.location.pathname);
+      showScreen("app");
+      try{ await loadData(); }catch(e){ showScreen("auth"); }
+      return;
+    }
     showScreen("auth");
     $("loginForm").classList.add("hidden");
     $("setpassForm").classList.remove("hidden");
