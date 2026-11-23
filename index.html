@@ -211,6 +211,7 @@
   .hscard{cursor:pointer}
   .fileprev{margin-top:10px; border:1px solid var(--line); border-radius:12px; background:#fff; padding:11px 12px}
   .fileprev img{max-width:100%; border-radius:10px; display:block}
+  .fileprev iframe{width:100%; height:480px; border:0; border-radius:10px; background:#fff; display:block}
   .fileprev .finfo{font-size:13px; line-height:1.6; color:var(--muted)}
   .fileprev .finfo b{color:var(--navy)}
   .mcard .r1{display:flex; align-items:flex-start; gap:9px}
@@ -509,6 +510,111 @@ function restoreView(){
   try{ localStorage.setItem("pelacak_hospital", activeHospital); }catch(e){}
   showView(saved.view);
 }
+
+/* ---------- tombol Back selangkah demi selangkah (History API) ----------
+   Setiap perpindahan tampilan dicatat sebagai satu langkah riwayat
+   (pushState), jadi tombol Back HP / browser kembali satu langkah ke
+   tampilan sebelumnya — bukan langsung keluar dari aplikasi.
+   Entri paling bawah selalu Beranda (ditandai base:true). Back dari
+   Beranda pertama kali hanya menampilkan pesan "Tekan sekali lagi
+   untuk keluar"; ditekan lagi dalam 2 detik, aplikasi keluar seperti
+   biasa. Bila tidak ditekan lagi, pesan hilang dan Back berikutnya
+   mengulang dari pesan lagi (satu entri Beranda baru ditambahkan saat
+   pesan kedaluwarsa, supaya Back berikutnya masih bisa dicegat).
+   Entri dari sesi sebelum refresh dikenali lewat sid — saat keluar,
+   entri lama itu dilewati terus sampai aplikasi benar-benar keluar. */
+const NAV_SID = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+let exitArmed = false;   // Back pertama di Beranda sudah ditekan (tunggu Back kedua)
+let exiting = false;     // sedang keluar: lewati entri lama sampai keluar aplikasi
+let exitTimer = null;
+function currentNavState(){
+  return {view, hospital: activeHospital, model: modelFilterVal, status: statusFilter,
+    filesHospital: (view === "files" ? filesHospital : ""), sid: NAV_SID};
+}
+function armExit(){
+  exitArmed = true;
+  toast("Tekan sekali lagi untuk keluar");
+  clearTimeout(exitTimer);
+  exitTimer = setTimeout(() => {
+    exitArmed = false;
+    // Pesan sudah hilang: jaga supaya Back berikutnya masih bisa dicegat
+    // (tambah satu entri Beranda di atas entri dasar).
+    if(view === "home" && session){
+      try{ history.pushState(currentNavState(), ""); }catch(e){}
+    }
+  }, 2000);
+}
+function initHistory(){
+  // Entri dasar selalu Beranda — Back dari tampilan pulihan (mis. dashboard)
+  // mampir dulu ke Beranda, bukan langsung keluar. Tampilan saat ini selalu
+  // ditambahkan di atas entri dasar, supaya Back pertama di Beranda masih
+  // bisa dicegat (tanpa entri di atasnya, Back langsung keluar dari aplikasi).
+  const st = currentNavState();
+  try{
+    history.replaceState({view:"home", hospital: activeHospital, model:"", status:"due", filesHospital:"", sid: NAV_SID, base:true}, "");
+    history.pushState(Object.assign({}, st, {sid: NAV_SID}), "");
+  }catch(e){}
+}
+function applyState(s){
+  exitArmed = false; exiting = false; clearTimeout(exitTimer);
+  if(!s || !VIEW_NAMES.includes(s.view)) s = {view:"home"};
+  if(HOSPITALS.includes(s.hospital)){ activeHospital = s.hospital; try{ localStorage.setItem("pelacak_hospital", activeHospital); }catch(e){} }
+  modelFilterVal = ["", "JOYHEAL", "SWS-6000A"].includes(s.model) ? s.model : "";
+  statusFilter = (s.status === "ok") ? "ok" : "due";
+  if(s.view === "files"){
+    filesHospital = s.filesHospital || "";
+    filesOpen = new Set();
+  }
+  revokeAllFileBlobUrls();
+  showView(s.view);
+  if(s.view === "deleted") refreshDeleted();
+  else if(s.view === "added") refreshAdded();
+  else if(s.view === "files") refreshFiles();
+  else renderAll();
+}
+function navigateTo(state){
+  exitArmed = false; exiting = false; clearTimeout(exitTimer);
+  const full = {
+    view: state.view,
+    hospital: state.hospital || activeHospital,
+    model: (state.model !== undefined ? state.model : modelFilterVal),
+    status: state.status || statusFilter,
+    filesHospital: state.filesHospital || "",
+    sid: NAV_SID
+  };
+  try{ history.pushState(full, ""); }catch(e){}
+  applyState(full);
+}
+window.addEventListener("popstate", (ev) => {
+  if(!session) return; // sudah logout: biarkan browser yang mengatur
+  const s = ev.state;
+  // Rantai keluar (Back kedua setelah pesan): lewati entri lama dari sesi
+  // sebelum refresh sampai aplikasi benar-benar keluar.
+  if(exiting){
+    if(s && s.view){ setTimeout(() => history.back(), 0); }
+    else { exiting = false; }
+    return;
+  }
+  // Back kedua dalam 2 detik setelah pesan keluar.
+  if(exitArmed){
+    exitArmed = false; clearTimeout(exitTimer);
+    if(s && s.view && s.sid !== NAV_SID){ exiting = true; setTimeout(() => history.back(), 0); }
+    return;
+  }
+  // Tiba di entri dasar (Beranda paling awal): tampilkan Beranda, tahan dulu, tampilkan pesan.
+  if(s && s.base){
+    applyState(s);
+    armExit();
+    return;
+  }
+  if(s && s.view){
+    applyState(s);
+    return;
+  }
+  // Tiba di entri awal yang belum punya state: kembali ke Beranda dulu.
+  if(view !== "home"){ navigateTo({view:"home"}); return; }
+  armExit();
+});
 function shortH(h){ return h === H_MAYAPADA ? "Mayapada" : h; }
 function inHospital(m){ return !activeHospital || (m.hospital || H_MAYAPADA) === activeHospital; }
 function syncHospitalTabs(){
@@ -641,7 +747,7 @@ function toast(text){
 function showScreen(name){
   $("authScreen").classList.toggle("hidden", name !== "auth");
   $("appScreen").classList.toggle("hidden", name !== "app");
-  if(name === "app"){ restoreView(); }
+  if(name === "app"){ restoreView(); initHistory(); }
   if(name === "auth"){
     $("loginForm").classList.remove("hidden");
     $("recoverForm").classList.add("hidden");
@@ -937,7 +1043,7 @@ function renderFiles(){
       card.setAttribute("tabindex", "0");
       card.innerHTML = `<div class="r1"><div><div class="serial">${esc(shortH(h))}</div><div class="model">${esc(h)}</div></div><span class="badge">${n} file</span></div>
         <div class="meta">Ketuk untuk membuka penyimpanan ${esc(shortH(h))}</div>`;
-      const open = () => { filesHospital = h; filesOpen = new Set(); renderFiles(); };
+      const open = () => { navigateTo({view:"files", filesHospital: h}); };
       card.addEventListener("click", open);
       card.addEventListener("keydown", (ev) => { if(ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); open(); } });
       home.appendChild(card);
@@ -975,22 +1081,52 @@ function renderFiles(){
     box.appendChild(card);
   });
 }
+/* ---------- pratinjau file: gambar dan PDF tampil dokumennya, jenis lain info file ---------- */
+let fileBlobUrls = {}; // id file -> blob URL untuk pratinjau PDF (dibuat dari base64 yang sudah dimuat)
+function fileBlobUrlFor(f){
+  if(fileBlobUrls[f.id]) return fileBlobUrls[f.id];
+  const data = fileDataCache[f.id] || "";
+  const bytes = Uint8Array.from(atob(data), c => c.charCodeAt(0));
+  const url = URL.createObjectURL(new Blob([bytes], {type: f.mime || "application/pdf"}));
+  fileBlobUrls[f.id] = url;
+  return url;
+}
+function revokeFileBlobUrl(id){
+  if(fileBlobUrls[id]){ try{ URL.revokeObjectURL(fileBlobUrls[id]); }catch(e){} delete fileBlobUrls[id]; }
+}
+function revokeAllFileBlobUrls(){ Object.keys(fileBlobUrls).forEach(revokeFileBlobUrl); }
+function isPdfFile(f){
+  return (f.mime || "") === "application/pdf" || /\.pdf$/i.test(f.name || "");
+}
 function renderFilePreview(f){
   const wrap = document.createElement("div");
   wrap.className = "fileprev";
   const data = fileDataCache[f.id] || "";
-  if((f.mime || "").startsWith("image/") && data){
+  const isImg = (f.mime || "").startsWith("image/");
+  const isPdf = isPdfFile(f);
+  if(isImg && data){
     const img = document.createElement("img");
     img.src = `data:${f.mime};base64,${data}`;
     img.alt = f.name;
     wrap.appendChild(img);
-  } else {
-    wrap.innerHTML = `<div class="finfo"><b>${esc(f.name)}</b><br>Jenis: ${esc(f.mime || "-")}<br>Ukuran: ${fmtSize(f.size)}<br>Diunggah: ${prettyDateTime(f.uploaded_at)}${f.uploaded_by ? "<br>Oleh: " + esc(f.uploaded_by) : ""}<br><br>Pratinjau tidak tersedia untuk jenis file ini — unduh untuk membukanya.</div>`;
+  } else if(isPdf && data){
+    // PDF tampil langsung dokumennya (penampil PDF bawaan Chrome) lewat blob URL —
+    // lebih andal di HP Android daripada data URL.
+    const frame = document.createElement("iframe");
+    frame.src = fileBlobUrlFor(f);
+    frame.title = f.name;
+    wrap.appendChild(frame);
   }
+  // Info file selalu ada di bawah pratinjau sebagai pelengkap (bukan isi utama).
+  const info = document.createElement("div");
+  info.className = "finfo";
+  if((isImg || isPdf) && data) info.style.marginTop = "10px";
+  info.innerHTML = `<b>${esc(f.name)}</b><br>Jenis: ${esc(f.mime || "-")}<br>Ukuran: ${fmtSize(f.size)}<br>Diunggah: ${prettyDateTime(f.uploaded_at)}${f.uploaded_by ? "<br>Oleh: " + esc(f.uploaded_by) : ""}${(!isImg && !isPdf) ? "<br><br>Pratinjau tidak tersedia untuk jenis file ini — unduh untuk membukanya." : ""}`;
+  wrap.appendChild(info);
   return wrap;
 }
 async function toggleFilePreview(f){
-  if(filesOpen.has(f.id)){ filesOpen.delete(f.id); renderFiles(); return; }
+  if(filesOpen.has(f.id)){ filesOpen.delete(f.id); revokeFileBlobUrl(f.id); renderFiles(); return; }
   if(!fileDataCache[f.id]){
     try{
       const rows = await rest(`/app_files?select=data&id=eq.${f.id}`);
@@ -1029,7 +1165,12 @@ function readFileAsBase64(file){
   });
 }
 $("addFileBtn").addEventListener("click", () => { $("fileInput").click(); });
-$("filesBackBtn").addEventListener("click", () => { filesHospital = ""; filesOpen = new Set(); renderFiles(); });
+$("filesBackBtn").addEventListener("click", () => {
+  // Selaras dengan tombol Back HP: mundur satu langkah riwayat.
+  // (Detail file hanya bisa dibuka lewat pushState, jadi selalu ada langkah sebelumnya.)
+  if(history.state && history.state.view === "files" && history.state.filesHospital){ history.back(); }
+  else { filesHospital = ""; filesOpen = new Set(); renderFiles(); }
+});
 $("fileInput").addEventListener("change", async () => {
   const input = $("fileInput");
   const picked = Array.from(input.files || []);
@@ -1359,10 +1500,8 @@ function showView(v){
 function goDash(opts = {}){
   clearDeleteSuggestions();
   clearDeletePreview();
-  if(opts.hospital){ activeHospital = opts.hospital; localStorage.setItem("pelacak_hospital", activeHospital); }
-  modelFilterVal = opts.model || "";
-  showView("dash");
-  renderAll();
+  // Perpindahan tampilan dicatat sebagai satu langkah riwayat (Back kembali ke tampilan sebelumnya).
+  navigateTo({view:"dash", hospital: opts.hospital || activeHospital, model: opts.model || "", status: statusFilter});
   window.scrollTo(0, 0);
 }
 
@@ -1486,11 +1625,11 @@ document.querySelectorAll("#sidebar .menuitem[data-h]").forEach(b => b.addEventL
 /* Logout dari sidebar memakai tombol Keluar yang sama persis — tanpa logika logout baru. */
 $("logoutMenuBtn").addEventListener("click", () => { closeSidebar(); doLogout(); });
 /* ---------- tampilan awal (beranda bergambar) ---------- */
-$("homeMenuBtn").addEventListener("click", () => { showView("home"); renderAll(); closeSidebar(); });
-$("addMenuBtn").addEventListener("click", () => { showView("add"); renderAll(); closeSidebar(); });
-$("deletedMenuBtn").addEventListener("click", () => { showView("deleted"); closeSidebar(); refreshDeleted(); });
-$("addedMenuBtn").addEventListener("click", () => { showView("added"); closeSidebar(); refreshAdded(); });
-$("filesMenuBtn").addEventListener("click", () => { filesHospital = ""; showView("files"); closeSidebar(); refreshFiles(); });
+$("homeMenuBtn").addEventListener("click", () => { navigateTo({view:"home"}); closeSidebar(); });
+$("addMenuBtn").addEventListener("click", () => { navigateTo({view:"add"}); closeSidebar(); });
+$("deletedMenuBtn").addEventListener("click", () => { navigateTo({view:"deleted"}); closeSidebar(); });
+$("addedMenuBtn").addEventListener("click", () => { navigateTo({view:"added"}); closeSidebar(); });
+$("filesMenuBtn").addEventListener("click", () => { navigateTo({view:"files", filesHospital:""}); closeSidebar(); });
 /* ---------- Beranda: seret foto untuk menukar posisi (tekan-tahan lalu seret) ---------- */
 const HOME_CARDS = {sws: $("homeSws"), joy: $("homeJoy")};
 const HOME_ORDER_KEY = "pelacak_home_order";
@@ -1721,8 +1860,8 @@ $("addBtn").addEventListener("click", async () => {
     machines.sort((a, b) => a.serial < b.serial ? -1 : 1);
     $("addSerial").value = ""; $("addYear").value = ""; $("addNote").value = "";
     activeHospital = hospital; localStorage.setItem("pelacak_hospital", activeHospital);
-    showView("dash");
-    renderAll(); toast("Mesin " + serial + " ditambahkan");
+    navigateTo({view:"dash"});
+    toast("Mesin " + serial + " ditambahkan");
   }catch(e){
     toast(e.message.includes("duplicate") || e.message.includes("unique") ? "Nomor seri itu sudah terdaftar" : "Gagal menambah: " + e.message);
   }
