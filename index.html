@@ -151,6 +151,10 @@
   .statustoggle button.due.active .count{background:var(--red)}
   .statustoggle button.ok.active{background:#cdeed6; border-color:#146c3a; color:#146c3a}
   .statustoggle button.ok.active .count{background:var(--green)}
+  /* Chip filter rumah sakit di Riwayat Tambah */
+  .filterchips{display:flex; flex-wrap:wrap; gap:8px; margin:0 0 12px}
+  .filterchips button{padding:9px 13px; border-radius:999px; border:1.5px solid var(--line); background:#f6f8fb; font-weight:700; font-size:13.5px; color:var(--navy); cursor:pointer}
+  .filterchips button.active{background:var(--navy); border-color:var(--navy); color:#fff}
   /* Navigasi halaman di bawah tiap kelompok tipe (10 mesin per halaman) */
   .pagenav{display:flex; align-items:center; justify-content:space-between; gap:8px; margin:2px 0 6px}
   .pagenav button{border:1.5px solid var(--navy); background:#fff; color:var(--navy); border-radius:9px; padding:8px 12px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap}
@@ -305,6 +309,7 @@
     <button type="button" class="menuitem" data-h="RS PMI"><span class="dot"></span>RS PMI</button>
     <button type="button" class="menuitem" data-h="RSUD Leuwiliang"><span class="dot"></span>RSUD Leuwiliang</button>
     <button type="button" class="menuitem" id="deletedMenuBtn"><span class="dot"></span>Riwayat Dihapus</button>
+    <button type="button" class="menuitem" id="addedMenuBtn"><span class="dot"></span>Riwayat Tambah</button>
     <button type="button" class="menuitem" id="addMenuBtn"><span class="dot"></span>Tambah Mesin</button>
     <div class="side-sep"></div>
     <button type="button" class="menuitem" id="logoutMenuBtn"><span class="dot"></span>Logout</button>
@@ -425,6 +430,17 @@
       <div id="deletedList"></div>
     </section>
   </main>
+
+  <!-- ===== RIWAYAT TAMBAH (tampilan sendiri lewat menu) ===== -->
+  <main id="addedMain" class="hidden">
+    <section class="panel">
+      <h2>Riwayat Tambah</h2>
+      <p class="hint">Mesin yang ditambahkan, urut dari yang terbaru. Ketuk nama rumah sakit untuk melihat nomor seri yang ditambahkan di sana.</p>
+      <div class="filterchips" id="addedFilter"></div>
+      <div id="addedList"></div>
+      <div id="addedPageNav"></div>
+    </section>
+  </main>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -448,13 +464,13 @@ let openHistory = new Set(); // kartu yang riwayatnya sedang dibuka
 const H_MAYAPADA = "Mayapada Hospital Bogor";
 let activeHospital = ["Mayapada Hospital Bogor", "RS PMI", "RSUD Leuwiliang"].includes(localStorage.getItem("pelacak_hospital")) ? localStorage.getItem("pelacak_hospital") : H_MAYAPADA;
 let totals = {"Mayapada Hospital Bogor": 11, "RS PMI": 49, "RSUD Leuwiliang": 28}; // total mesin per RS, bisa diubah dari halaman Ronde
-let view = "home";       // tampilan aktif: "home" (beranda bergambar) / "dash" (tampilan normal) / "add" (tambah mesin)
+let view = "home";       // tampilan aktif: "home" (beranda bergambar) / "dash" (tampilan normal) / "add" (tambah mesin) / "deleted" (riwayat dihapus) / "added" (riwayat tambah)
 let statusFilter = "due"; // filter status daftar: "due" (hanya Belum, default) | "ok" (hanya Sudah) — diganti lewat sakelar status di atas daftar
 let modelFilterVal = ""; // filter model daftar: "" (semua) | "JOYHEAL" | "SWS-6000A" — diatur lewat ketuk gambar di Beranda (toolbar pencarian sudah dihapus)
 
 /* ---------- ingat posisi tampilan terakhir (tetap saat refresh) ---------- */
 const VIEW_KEY = "pelacak_view";
-const VIEW_NAMES = ["home", "dash", "add", "deleted"];
+const VIEW_NAMES = ["home", "dash", "add", "deleted", "added"];
 const HOSPITALS = ["Mayapada Hospital Bogor", "RS PMI", "RSUD Leuwiliang"];
 function saveView(){
   try{ localStorage.setItem(VIEW_KEY, JSON.stringify({view, hospital: activeHospital, model: modelFilterVal, status: statusFilter})); }catch(e){}
@@ -786,6 +802,84 @@ function renderDeletedList(){
     if(open) box.appendChild(renderDeletedHistory(d));
   });
 }
+/* ---------- riwayat mesin yang ditambahkan (per rumah sakit, urut terbaru dulu) ---------- */
+let addedFilter = ""; // "" = Semua | nama rumah sakit — dipilih lewat chip di atas daftar
+let addedPage = 1;    // halaman aktif Riwayat Tambah (10 mesin per halaman)
+function addedSorted(){
+  return machines.slice().sort((a, b) => {
+    const ca = a.created_at || "", cb = b.created_at || "";
+    if(ca !== cb) return cb < ca ? -1 : 1; // terbaru dulu; tanpa tanggal penambahan diurutkan paling akhir
+    return a.serial < b.serial ? -1 : 1;
+  });
+}
+function renderAddedList(){
+  const listBox = $("addedList");
+  const navBox = $("addedPageNav");
+  const filterBox = $("addedFilter");
+  if(!listBox || !navBox || !filterBox) return;
+  /* Chip filter rumah sakit beserta jumlah mesinnya. */
+  const chips = [{v: "", label: "Semua"}].concat(HOSPITALS.map(h => ({v: h, label: shortH(h)})));
+  filterBox.innerHTML = "";
+  chips.forEach(c => {
+    const n = c.v ? machines.filter(m => (m.hospital || H_MAYAPADA) === c.v).length : machines.length;
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = `${c.label} (${n})`;
+    if(addedFilter === c.v) b.classList.add("active");
+    b.addEventListener("click", () => { if(addedFilter !== c.v){ addedFilter = c.v; addedPage = 1; renderAddedList(); } });
+    filterBox.appendChild(b);
+  });
+  const list = addedSorted().filter(m => !addedFilter || (m.hospital || H_MAYAPADA) === addedFilter);
+  listBox.innerHTML = "";
+  navBox.innerHTML = "";
+  if(!list.length){
+    listBox.innerHTML = `<div class="panel empty">Belum ada mesin yang ditambahkan.</div>`;
+    return;
+  }
+  const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+  if(addedPage > totalPages) addedPage = totalPages;
+  if(addedPage < 1) addedPage = 1;
+  list.slice((addedPage - 1) * PAGE_SIZE, addedPage * PAGE_SIZE).forEach(m => {
+    const card = document.createElement("div");
+    card.className = "mcard";
+    card.innerHTML = `<div class="r1"><div><div class="serial">${esc(m.serial)}</div><div class="model"><span class="seg">${esc(m.model)}</span>${m.year ? ` <span class="seg">Tahun ${esc(m.year)}</span>` : ""} <span class="seg">${esc(shortH(m.hospital || H_MAYAPADA))}</span></div></div></div>
+      <div class="meta">Ditambahkan: ${prettyDateTime(m.created_at)}</div>`;
+    listBox.appendChild(card);
+  });
+  if(totalPages > 1){
+    const nav = document.createElement("div");
+    nav.className = "pagenav";
+    if(addedPage > 1){
+      const prev = document.createElement("button");
+      prev.type = "button"; prev.textContent = "‹ Sebelumnya";
+      prev.addEventListener("click", () => { addedPage--; renderAddedList(); });
+      nav.appendChild(prev);
+    } else {
+      nav.appendChild(document.createElement("span"));
+    }
+    const num = document.createElement("span");
+    num.className = "pagenum";
+    num.textContent = `Hal. ${addedPage} dari ${totalPages}`;
+    nav.appendChild(num);
+    if(addedPage < totalPages){
+      const next = document.createElement("button");
+      next.type = "button"; next.textContent = "Berikutnya ›";
+      next.addEventListener("click", () => { addedPage++; renderAddedList(); });
+      nav.appendChild(next);
+    } else {
+      nav.appendChild(document.createElement("span"));
+    }
+    navBox.appendChild(nav);
+  }
+}
+async function refreshAdded(){
+  try{
+    machines = await rest("/machines?select=*&order=created_at.desc");
+    machines.forEach(m => { if(!m.hospital) m.hospital = H_MAYAPADA; });
+    machines.sort((a, b) => a.serial < b.serial ? -1 : 1);
+  }catch(e){ toast("Gagal memuat riwayat tambah: " + e.message); }
+  renderAddedList();
+}
 function renderRecog(){
   const box = $("recogBox");
   const q = $("snInput").value.trim().toUpperCase();
@@ -1036,6 +1130,11 @@ function renderAll(){
     document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
     $("deletedMenuBtn").classList.add("active");
     renderDeletedList();
+  } else if(view === "added"){
+    $("hdrHospital").textContent = "Riwayat Tambah";
+    document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
+    $("addedMenuBtn").classList.add("active");
+    renderAddedList();
   }
 }
 
@@ -1046,6 +1145,7 @@ function showView(v){
   $("dashMain").classList.toggle("hidden", v !== "dash");
   $("addMain").classList.toggle("hidden", v !== "add");
   $("deletedMain").classList.toggle("hidden", v !== "deleted");
+  $("addedMain").classList.toggle("hidden", v !== "added");
   if(v === "home"){
     applyHomeOrder();
     $("hdrHospital").textContent = "Beranda";
@@ -1060,6 +1160,11 @@ function showView(v){
     document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
     $("deletedMenuBtn").classList.add("active");
     renderDeletedList();
+  } else if(v === "added"){
+    $("hdrHospital").textContent = "Riwayat Tambah";
+    document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
+    $("addedMenuBtn").classList.add("active");
+    renderAddedList();
   } else {
     syncHospitalTabs();
   }
@@ -1199,6 +1304,7 @@ $("logoutMenuBtn").addEventListener("click", () => { closeSidebar(); doLogout();
 $("homeMenuBtn").addEventListener("click", () => { showView("home"); renderAll(); closeSidebar(); });
 $("addMenuBtn").addEventListener("click", () => { showView("add"); renderAll(); closeSidebar(); });
 $("deletedMenuBtn").addEventListener("click", () => { showView("deleted"); closeSidebar(); refreshDeleted(); });
+$("addedMenuBtn").addEventListener("click", () => { showView("added"); closeSidebar(); refreshAdded(); });
 /* ---------- Beranda: seret foto untuk menukar posisi (tekan-tahan lalu seret) ---------- */
 const HOME_CARDS = {sws: $("homeSws"), joy: $("homeJoy")};
 const HOME_ORDER_KEY = "pelacak_home_order";
