@@ -1568,7 +1568,28 @@ function closeSidebarInstant(){
   void sb.offsetWidth; // paksa reflow: perubahan langsung diterapkan tanpa animasi
   requestAnimationFrame(() => sb.classList.remove("noanim"));
 }
+// Abaikan click akibat sapuan pada tombol ☰. Gestur Back Android adalah
+// sapuan dari tepi kiri; bila sapuan itu pendek (10-15px) dan mulai di atas
+// tombol ☰, browser menafsirkannya juga sebagai ketukan sehingga drawer
+// ikut terbuka bersamaan dengan pindahnya tampilan. Karena itu, bila
+// penunjuk sempat bergerak lebih dari 8px sejak pointerdown, click
+// berikutnya diabaikan (itu sapuan, bukan ketukan). Ketukan biasa (penunjuk
+// hampir tidak bergerak), klik mouse tanpa seret, dan tombol keyboard tetap
+// membuka/menutup drawer. Dipakai pointer event supaya gerakannya terpantau
+// — touchmove tidak selalu sampai ke halaman saat sapuan ditangani browser.
+let menuBtnSwipe = false, menuBtnStart = null;
+$("menuBtn").addEventListener("pointerdown", (ev) => {
+  menuBtnStart = { x: ev.clientX, y: ev.clientY };
+  menuBtnSwipe = false;
+});
+$("menuBtn").addEventListener("pointermove", (ev) => {
+  if(!menuBtnStart) return;
+  if(Math.hypot(ev.clientX - menuBtnStart.x, ev.clientY - menuBtnStart.y) > 8) menuBtnSwipe = true;
+});
+$("menuBtn").addEventListener("pointerup", () => { menuBtnStart = null; });
+$("menuBtn").addEventListener("pointercancel", () => { menuBtnStart = null; menuBtnSwipe = false; });
 $("menuBtn").addEventListener("click", () => {
+  if(menuBtnSwipe){ menuBtnSwipe = false; return; } // sapuan, bukan ketukan
   $("sidebar").classList.contains("open") ? closeSidebar() : openSidebar();
 });
 $("scrim").addEventListener("click", closeSidebar);
