@@ -62,8 +62,11 @@
 
   /* ---------- menu samping kiri ---------- */
   #menuBtn{display:none; flex:none; font-size:19px; line-height:1; padding:7px 10px}
-  #backBtn{display:block; flex:none; font-size:20px; line-height:1; padding:4px 8px; font-weight:800}
-  .sidebar{position:fixed; top:0; left:0; bottom:0; width:252px; background:var(--navy); color:#fff; z-index:40; transform:translateX(-102%); transition:transform .25s ease; display:flex; flex-direction:column; overflow-y:auto; box-shadow:2px 0 18px rgba(6,25,48,.25)}
+  /* Tombol Back mengambang di pojok kiri bawah — ketuk untuk mundur satu
+     langkah, sama seperti tombol Back HP. z-index di bawah scrim (30) supaya
+     tertutup drawer/scrim saat menu terbuka, seperti tombol header lainnya. */
+  #backFab{position:fixed; left:12px; bottom:12px; z-index:25; width:50px; height:50px; border-radius:50%; border:1px solid rgba(255,255,255,.35); background:var(--navy); color:#fff; font-size:26px; line-height:1; font-weight:800; box-shadow:0 6px 18px rgba(6,25,48,.35); padding:0 0 2px; cursor:pointer}
+  .sidebar{position:fixed; top:0; left:0; bottom:0; width:280px; background:var(--navy); color:#fff; z-index:40; transform:translateX(-102%); transition:transform .25s ease; display:flex; flex-direction:column; overflow-y:auto; box-shadow:2px 0 18px rgba(6,25,48,.25)}
   .sidebar.open{transform:translateX(0)}
   .sidebar.noanim{transition:none !important}
   .sidebar .brand{display:flex; align-items:center; gap:10px; padding:16px 16px 14px; border-bottom:1px solid rgba(255,255,255,.16)}
@@ -78,6 +81,13 @@
   /* Submenu Penyimpanan File: bersarang di bawah induknya, menjorok ke kanan.
      Chevron "›" menunjuk ke bawah saat submenu terbuka. */
   .sidebar .menuitem .chev{margin-left:auto; font-size:18px; line-height:1; transition:transform .2s ease}
+  .sidebar .menuitem .lbl{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  /* Induk submenu (Riwayat Dihapus, Riwayat Penambahan Mesin, Penyimpanan
+     File): tanpa titik — chevron sudah menandakan bisa dibuka — dan label
+     14px supaya label panjang seperti "Riwayat Penambahan Mesin" muat penuh
+     tanpa terpotong (sidebar 280px: label mendapat ~213px, teksnya ~186px). */
+  .sidebar .menuitem.has-sub .dot{display:none}
+  .sidebar .menuitem.has-sub .lbl{font-size:14px}
   .sidebar .menuitem[aria-expanded="true"] .chev{transform:rotate(90deg)}
   .sidebar .submenu{overflow:hidden}
   .sidebar .submenu .menuitem{padding:10px 13px 10px 30px; font-size:14px}
@@ -87,9 +97,11 @@
   .scrim{position:fixed; inset:0; background:rgba(6,25,48,.5); z-index:30; display:none}
   .scrim.show{display:block}
   @media (min-width:861px){
-    #appScreen{padding-left:252px}
+    #appScreen{padding-left:280px}
     .sidebar{transform:none}
     .scrim{display:none !important}
+    #backFab{left:292px}
+    .wallpaper{left:280px}
   }
   @media (max-width:860px){
     #menuBtn{display:block; padding:7px 8px}
@@ -97,7 +109,14 @@
     header.top img{width:32px; height:32px}
     header.top .dotsbtn{padding:6px 10px}
   }
-  main{max-width:640px; margin:0 auto; padding:16px 10px 60px}
+  main{max-width:640px; margin:0 auto; padding:16px 10px 92px; position:relative; z-index:1}
+  /* Wallpaper mesin (lihat div .wallpaper di #appScreen): gradasi biru muda
+     terang + dua foto mesin samar. z-index:0 supaya selalu di belakang
+     konten (main/#homeView punya z-index:1, header/FAB/menu lebih tinggi). */
+  .wallpaper{position:fixed; inset:0; z-index:0; display:flex; align-items:center; justify-content:center; overflow:hidden; pointer-events:none; background:linear-gradient(180deg,#eaf3fe,#f7fbff 55%,#dbeafe)}
+  .wallpaper img{opacity:.2; flex:none}
+  .wallpaper img.wall-sws{width:78vw; max-width:320px}
+  .wallpaper img.wall-joy{width:48vw; max-width:210px}
   .panel{background:var(--card); border-radius:14px; padding:16px; box-shadow:0 2px 10px rgba(11,37,69,.07); margin-bottom:14px}
   .panel h2{margin:0 0 4px; font-size:16px; color:var(--navy)}
   #recordPanel{scroll-margin-top:72px}
@@ -163,7 +182,7 @@
   .statustoggle button.due.active .count{background:var(--red)}
   .statustoggle button.ok.active{background:#cdeed6; border-color:#146c3a; color:#146c3a}
   .statustoggle button.ok.active .count{background:var(--green)}
-  /* Chip filter rumah sakit di Riwayat Tambah */
+  /* Chip filter rumah sakit di Riwayat Penambahan Mesin */
   .filterchips{display:flex; flex-wrap:wrap; gap:8px; margin:0 0 12px}
   .filterchips button{padding:9px 13px; border-radius:999px; border:1.5px solid var(--line); background:#f6f8fb; font-weight:700; font-size:13.5px; color:var(--navy); cursor:pointer}
   .filterchips button.active{background:var(--navy); border-color:var(--navy); color:#fff}
@@ -263,7 +282,8 @@
   .celebrate .ctext{color:var(--muted); font-size:14.5px; margin-top:5px}
   @keyframes cpop{0%{transform:scale(.6); opacity:0} 70%{transform:scale(1.06)} 100%{transform:scale(1); opacity:1}}
   /* ---------- tampilan awal (beranda bergambar) ---------- */
-  #homeView{max-width:640px; margin:0 auto; padding:16px 14px 60px}
+  #homeView{max-width:640px; margin:0 auto; padding:16px 14px 60px; position:relative; z-index:1}
+  #homeView{padding-bottom:92px}
   .homehero{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px}
   .homecard{background:var(--card); border:1.5px solid var(--line); border-radius:14px; padding:10px; box-shadow:0 2px 10px rgba(11,37,69,.07); cursor:pointer; text-align:center}
   .homecard img{width:100%; height:190px; object-fit:contain; background:#fff; border-radius:9px; display:block}
@@ -318,6 +338,10 @@
 
 <!-- ===== APLIKASI ===== -->
 <div id="appScreen" class="hidden">
+  <!-- Wallpaper mesin: dua foto (SWS kiri, Joyheal kanan) berdampingan, besar
+       dan samar di atas gradasi biru muda — lapisan tetap di belakang konten
+       di semua tampilan. Tidak menangkap ketukan (pointer-events:none). -->
+  <div class="wallpaper" aria-hidden="true"><img class="wall-sws" src="mesin-sws-6000a.jpg" alt=""><img class="wall-joy" src="mesin-joyheal.jpg" alt=""></div>
   <nav class="sidebar" id="sidebar" aria-label="Menu rumah sakit">
     <div class="brand">
       <img src="icon-192.png" alt="">
@@ -330,9 +354,11 @@
     <button type="button" class="menuitem" data-h="RSUD Leuwiliang"><span class="dot"></span>RSUD Leuwiliang</button>
     <div class="side-sep"></div>
     <button type="button" class="menuitem" id="addMenuBtn"><span class="dot"></span>Tambah Mesin</button>
-    <button type="button" class="menuitem" id="deletedMenuBtn"><span class="dot"></span>Riwayat Dihapus</button>
-    <button type="button" class="menuitem" id="addedMenuBtn"><span class="dot"></span>Riwayat Tambah</button>
-    <button type="button" class="menuitem" id="filesMenuBtn" aria-expanded="false" aria-controls="filesSubmenu"><span class="dot"></span>Penyimpanan File<span class="chev">›</span></button>
+    <button type="button" class="menuitem has-sub" id="deletedMenuBtn" aria-expanded="false" aria-controls="deletedSubmenu"><span class="lbl">Riwayat Dihapus</span><span class="chev">›</span></button>
+    <div class="submenu hidden" id="deletedSubmenu"></div>
+    <button type="button" class="menuitem has-sub" id="addedMenuBtn" aria-expanded="false" aria-controls="addedSubmenu"><span class="lbl">Riwayat Penambahan Mesin</span><span class="chev">›</span></button>
+    <div class="submenu hidden" id="addedSubmenu"></div>
+    <button type="button" class="menuitem has-sub" id="filesMenuBtn" aria-expanded="false" aria-controls="filesSubmenu"><span class="lbl">Penyimpanan File</span><span class="chev">›</span></button>
     <div class="submenu hidden" id="filesSubmenu"></div>
     <div class="side-sep"></div>
     <button type="button" class="menuitem" id="logoutMenuBtn"><span class="dot"></span>Logout</button>
@@ -340,7 +366,6 @@
   </nav>
   <div class="scrim" id="scrim"></div>
   <header class="top">
-    <button id="backBtn" type="button" aria-label="Kembali">‹</button>
     <button id="menuBtn" type="button" aria-label="Buka menu">☰</button>
     <img src="icon-192.png" alt="">
     <div class="t"><b>Pelacak Maintenance</b><span id="hdrHospital">Mayapada Hospital Bogor</span></div>
@@ -451,6 +476,7 @@
     <section class="panel">
       <h2>Riwayat Dihapus</h2>
       <p class="hint">Mesin yang sudah dihapus beserta riwayatnya. Hanya untuk dilihat — penghapusan yang terjadi sebelum fitur ini dibuat tidak tercatat di sini.</p>
+      <div class="filterchips" id="deletedFilter"></div>
       <div id="deletedList"></div>
     </section>
   </main>
@@ -458,7 +484,7 @@
   <!-- ===== RIWAYAT TAMBAH (tampilan sendiri lewat menu) ===== -->
   <main id="addedMain" class="hidden">
     <section class="panel">
-      <h2>Riwayat Tambah</h2>
+      <h2>Riwayat Penambahan Mesin</h2>
       <p class="hint">Mesin baru yang ditambahkan, urut dari yang terbaru. Ketuk nama rumah sakit untuk melihat nomor seri yang ditambahkan di sana.</p>
       <div class="filterchips" id="addedFilter"></div>
       <div id="addedList"></div>
@@ -481,6 +507,7 @@
       </div>
     </section>
   </main>
+  <button id="backFab" type="button" aria-label="Kembali">‹</button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -513,7 +540,7 @@ const VIEW_KEY = "pelacak_view";
 const VIEW_NAMES = ["home", "dash", "add", "deleted", "added", "files"];
 const HOSPITALS = ["Mayapada Hospital Bogor", "RS PMI", "RSUD Leuwiliang"];
 function saveView(){
-  try{ localStorage.setItem(VIEW_KEY, JSON.stringify({view, hospital: activeHospital, model: modelFilterVal, status: statusFilter, filesHospital: (view === "files" ? filesHospital : "")})); }catch(e){}
+  try{ localStorage.setItem(VIEW_KEY, JSON.stringify({view, hospital: activeHospital, model: modelFilterVal, status: statusFilter, filesHospital: (view === "files" ? filesHospital : ""), addedFilter: (view === "added" ? addedFilter : ""), deletedFilter: (view === "deleted" ? deletedFilter : "")})); }catch(e){}
 }
 function restoreView(){
   let saved = null;
@@ -522,6 +549,10 @@ function restoreView(){
   if(HOSPITALS.includes(saved.hospital)) activeHospital = saved.hospital;
   if(HOSPITALS.includes(saved.filesHospital)) filesHospital = saved.filesHospital; // pulihkan RS yang sedang dibuka di Penyimpanan File
   else filesHospital = ""; // daftar kartu: pastikan tidak tertinggal RS dari tampilan sebelumnya
+  if(HOSPITALS.includes(saved.addedFilter)) addedFilter = saved.addedFilter; // pulihkan filter RS Riwayat Penambahan Mesin
+  else addedFilter = "";
+  if(HOSPITALS.includes(saved.deletedFilter)) deletedFilter = saved.deletedFilter; // pulihkan filter RS Riwayat Dihapus
+  else deletedFilter = "";
   modelFilterVal = ["", "JOYHEAL", "SWS-6000A"].includes(saved.model) ? saved.model : "";
   statusFilter = (saved.status === "ok") ? "ok" : "due";
   try{ localStorage.setItem("pelacak_hospital", activeHospital); }catch(e){}
@@ -622,6 +653,36 @@ window.addEventListener("popstate", (ev) => {
   // menggeser satu entri).
   if($("sidebar").classList.contains("open")){
     closeSidebarInstant();
+    try{ history.pushState(currentNavState(), ""); }catch(e){}
+    return;
+  }
+  // Lipatan yang sedang terbuka: Back menutup lipatan dulu (satu langkah),
+  // tampilan tidak pindah — pola yang sama seperti cabang drawer di atas
+  // (riwayat dikembalikan seperti semula supaya tampilan dan riwayat tetap
+  // selaras; setiap aksi "membuka" adalah satu langkah Back).
+  // (a) Pratinjau file di Penyimpanan File: tutup pratinjau yang terakhir
+  // dibuka, kembali ke daftar file RS itu.
+  if(view === "files" && filesOpen.size){
+    const ids = [...filesOpen];
+    filesOpen.delete(ids[ids.length - 1]);
+    renderFiles();
+    try{ history.pushState(currentNavState(), ""); }catch(e){}
+    return;
+  }
+  // (b) Riwayat mesin yang dihapus di Riwayat Dihapus: tutup riwayat yang
+  // terakhir dibuka, tetap di daftar Riwayat Dihapus.
+  if(view === "deleted" && deletedOpen.size){
+    const ids = [...deletedOpen];
+    deletedOpen.delete(ids[ids.length - 1]);
+    renderDeletedList();
+    try{ history.pushState(currentNavState(), ""); }catch(e){}
+    return;
+  }
+  // (c) Riwayat dari kartu pratinjau hapus: tutup riwayatnya, kartu tetap
+  // terpilih, tetap di dashboard.
+  if(view === "dash" && deleteHistoryOpen){
+    deleteHistoryOpen = false;
+    renderDeletePreview();
     try{ history.pushState(currentNavState(), ""); }catch(e){}
     return;
   }
@@ -911,6 +972,7 @@ function renderDeleteHistory(m){
 }
 /* ---------- arsip mesin yang dihapus (tabel deleted_machines, read-only) ---------- */
 let deletedOpen = new Set(); // id arsip yang riwayatnya sedang dibuka
+let deletedFilter = ""; // nama rumah sakit yang dipilih lewat chip di Riwayat Dihapus (tanpa "Semua")
 function prettyDateTime(ts){
   if(!ts) return "-";
   try{
@@ -946,12 +1008,36 @@ function renderDeletedHistory(d){
 function renderDeletedList(){
   const box = $("deletedList");
   if(!box) return;
+  /* Chip filter rumah sakit beserta jumlah mesin yang dihapus per RS — tanpa
+     chip "Semua", polanya sama seperti Riwayat Penambahan Mesin. Bila belum
+     ada pilihan yang sah, pakai rumah sakit yang terakhir dipakai. */
+  const filterBox = $("deletedFilter");
+  if(!HOSPITALS.includes(deletedFilter)) deletedFilter = HOSPITALS.includes(activeHospital) ? activeHospital : H_MAYAPADA;
+  if(filterBox){
+    filterBox.innerHTML = "";
+    HOSPITALS.forEach(h => {
+      const n = deleted.filter(d => (d.hospital || H_MAYAPADA) === h).length;
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = `${shortH(h)} (${n})`;
+      if(deletedFilter === h) b.classList.add("active");
+      b.addEventListener("click", () => { if(deletedFilter !== h){ deletedFilter = h; saveView(); renderDeletedList(); } });
+      filterBox.appendChild(b);
+    });
+  }
   box.innerHTML = "";
+  const list = deleted.filter(d => (d.hospital || H_MAYAPADA) === deletedFilter);
   if(!deleted.length){
     box.innerHTML = `<div class="panel empty">Belum ada mesin yang dihapus.</div>`;
+    syncDeletedSubmenu();
     return;
   }
-  deleted.forEach(d => {
+  if(!list.length){
+    box.innerHTML = `<div class="panel empty">Belum ada mesin yang dihapus di ${esc(shortH(deletedFilter))}.</div>`;
+    syncDeletedSubmenu();
+    return;
+  }
+  list.forEach(d => {
     const n = (d.logs || []).length;
     const open = deletedOpen.has(d.id);
     const card = document.createElement("div");
@@ -966,6 +1052,7 @@ function renderDeletedList(){
     box.appendChild(card);
     if(open) box.appendChild(renderDeletedHistory(d));
   });
+  syncDeletedSubmenu();
 }
 /* ---------- riwayat mesin yang ditambahkan (per rumah sakit, urut terbaru dulu) ---------- */
 /* Batas awal riwayat: fitur ini live 23 Nov 2026 pukul 10.54 WIB — hanya mesin yang
@@ -974,7 +1061,7 @@ const ADDED_HISTORY_SINCE = "2026-11-23T10:54:00+07:00";
 const ADDED_HISTORY_SINCE_MS = Date.parse(ADDED_HISTORY_SINCE);
 function isNewlyAdded(m){ return !!m.created_at && Date.parse(m.created_at) >= ADDED_HISTORY_SINCE_MS; }
 let addedFilter = ""; // nama rumah sakit yang dipilih lewat chip di atas daftar (tanpa "Semua")
-let addedPage = 1;    // halaman aktif Riwayat Tambah (10 mesin per halaman)
+let addedPage = 1;    // halaman aktif Riwayat Penambahan Mesin (10 mesin per halaman)
 function addedSorted(){
   return machines.slice().sort((a, b) => {
     const ca = a.created_at || "", cb = b.created_at || "";
@@ -999,7 +1086,7 @@ function renderAddedList(){
     b.type = "button";
     b.textContent = `${c.label} (${n})`;
     if(addedFilter === c.v) b.classList.add("active");
-    b.addEventListener("click", () => { if(addedFilter !== c.v){ addedFilter = c.v; addedPage = 1; renderAddedList(); } });
+    b.addEventListener("click", () => { if(addedFilter !== c.v){ addedFilter = c.v; addedPage = 1; saveView(); renderAddedList(); } });
     filterBox.appendChild(b);
   });
   const list = addedSorted().filter(m => isNewlyAdded(m) && (m.hospital || H_MAYAPADA) === addedFilter);
@@ -1007,6 +1094,7 @@ function renderAddedList(){
   navBox.innerHTML = "";
   if(!list.length){
     listBox.innerHTML = `<div class="panel empty">Belum ada mesin baru yang ditambahkan di ${esc(shortH(addedFilter))}.</div>`;
+    syncAddedSubmenu();
     return;
   }
   const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
@@ -1044,6 +1132,7 @@ function renderAddedList(){
     }
     navBox.appendChild(nav);
   }
+  syncAddedSubmenu();
 }
 async function refreshAdded(){
   try{
@@ -1165,6 +1254,85 @@ function syncFilesSubmenu(){
   sub.classList.toggle("hidden", !open);
   parent.setAttribute("aria-expanded", open ? "true" : "false");
   sub.querySelectorAll(".menuitem").forEach(b => b.classList.toggle("active", view === "files" && b.dataset.fh === filesHospital));
+}
+/* ---------- submenu Riwayat Penambahan Mesin di menu samping ----------
+   Polanya sama seperti submenu Penyimpanan File: ketuk induk, submenu 3 RS
+   terbuka (dan tampilan Riwayat Penambahan Mesin terbuka). Ketuk RS di
+   submenu: tampilan Riwayat Penambahan Mesin terfilter ke RS itu dan drawer
+   menutup seperti menu lain. Ketuk induk lagi saat submenu terbuka: submenu
+   menutup, tampilan tetap. Selama di tampilan "added", submenu tetap terbuka
+   dengan RS yang aktif ditandai; pindah ke tampilan lain: submenu menutup.
+   Ketiga submenu (file, tambah, hapus) masing-masing terikat pada
+   tampilannya, jadi tidak pernah terbuka bersamaan — membuka satu otomatis
+   menutup yang lain lewat showView/renderAll. */
+let addedSubUserClosed = false; // pengguna menutup submenu secara manual saat masih di tampilan added
+function buildAddedSubmenu(){
+  const sub = $("addedSubmenu");
+  if(!sub) return;
+  sub.innerHTML = "";
+  HOSPITALS.forEach(h => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "menuitem subitem";
+    b.dataset.fh = h;
+    const label = h === H_MAYAPADA ? "RS Mayapada" : h;
+    b.innerHTML = `<span class="dot"></span><span class="lbl">${esc(label)}</span><span class="count">0 mesin</span>`;
+    b.addEventListener("click", () => {
+      addedSubUserClosed = false;
+      addedFilter = h; addedPage = 1;
+      navigateTo({view:"added"});
+      closeSidebar();
+    });
+    sub.appendChild(b);
+  });
+}
+function syncAddedSubmenu(){
+  const sub = $("addedSubmenu"), parent = $("addedMenuBtn");
+  if(!sub || !parent) return;
+  HOSPITALS.forEach(h => {
+    const c = sub.querySelector('[data-fh="' + h + '"] .count');
+    if(c) c.textContent = machines.filter(m => isNewlyAdded(m) && (m.hospital || H_MAYAPADA) === h).length + " mesin";
+  });
+  const open = (view === "added") && !addedSubUserClosed;
+  sub.classList.toggle("hidden", !open);
+  parent.setAttribute("aria-expanded", open ? "true" : "false");
+  sub.querySelectorAll(".menuitem").forEach(b => b.classList.toggle("active", view === "added" && b.dataset.fh === addedFilter));
+}
+/* ---------- submenu Riwayat Dihapus di menu samping ----------
+   Polanya sama seperti submenu Penyimpanan File dan Riwayat Penambahan
+   Mesin, dengan jumlah mesin yang dihapus per RS. */
+let deletedSubUserClosed = false; // pengguna menutup submenu secara manual saat masih di tampilan deleted
+function buildDeletedSubmenu(){
+  const sub = $("deletedSubmenu");
+  if(!sub) return;
+  sub.innerHTML = "";
+  HOSPITALS.forEach(h => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "menuitem subitem";
+    b.dataset.fh = h;
+    const label = h === H_MAYAPADA ? "RS Mayapada" : h;
+    b.innerHTML = `<span class="dot"></span><span class="lbl">${esc(label)}</span><span class="count">0 mesin</span>`;
+    b.addEventListener("click", () => {
+      deletedSubUserClosed = false;
+      deletedFilter = h;
+      navigateTo({view:"deleted"});
+      closeSidebar();
+    });
+    sub.appendChild(b);
+  });
+}
+function syncDeletedSubmenu(){
+  const sub = $("deletedSubmenu"), parent = $("deletedMenuBtn");
+  if(!sub || !parent) return;
+  HOSPITALS.forEach(h => {
+    const c = sub.querySelector('[data-fh="' + h + '"] .count');
+    if(c) c.textContent = deleted.filter(d => (d.hospital || H_MAYAPADA) === h).length + " mesin";
+  });
+  const open = (view === "deleted") && !deletedSubUserClosed;
+  sub.classList.toggle("hidden", !open);
+  parent.setAttribute("aria-expanded", open ? "true" : "false");
+  sub.querySelectorAll(".menuitem").forEach(b => b.classList.toggle("active", view === "deleted" && b.dataset.fh === deletedFilter));
 }
 /* ---------- pratinjau file: gambar tampil di aplikasi, PDF dibuka di tab baru, jenis lain info file ---------- */
 // Blob URL segar untuk membuka PDF di tab baru. Dibebaskan setelah 60 detik —
@@ -1533,6 +1701,8 @@ function nextSeqInfo(h){
 function renderAll(){
   syncHospitalTabs(); renderSummary(); renderList(); renderRecog();
   syncFilesSubmenu(); // jumlah file per RS di submenu selalu mengikuti data terbaru
+  syncAddedSubmenu(); // jumlah mesin baru per RS di submenu selalu mengikuti data terbaru
+  syncDeletedSubmenu(); // jumlah mesin yang dihapus per RS di submenu selalu mengikuti data terbaru
   if(view === "home"){
     $("hdrHospital").textContent = "Beranda";
     document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
@@ -1547,7 +1717,7 @@ function renderAll(){
     $("deletedMenuBtn").classList.add("active");
     renderDeletedList();
   } else if(view === "added"){
-    $("hdrHospital").textContent = "Riwayat Tambah";
+    $("hdrHospital").textContent = "Riwayat Penambahan Mesin";
     document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
     $("addedMenuBtn").classList.add("active");
     renderAddedList();
@@ -1563,6 +1733,8 @@ function renderAll(){
 function showView(v){
   view = v;
   if(v === "files") filesSubUserClosed = false; // masuk/kembali ke tampilan file: submenu terbuka lagi
+  if(v === "added") addedSubUserClosed = false; // masuk/kembali ke Riwayat Penambahan Mesin: submenu terbuka lagi
+  if(v === "deleted") deletedSubUserClosed = false; // masuk/kembali ke Riwayat Dihapus: submenu terbuka lagi
   $("homeView").classList.toggle("hidden", v !== "home");
   $("dashMain").classList.toggle("hidden", v !== "dash");
   $("addMain").classList.toggle("hidden", v !== "add");
@@ -1584,7 +1756,7 @@ function showView(v){
     $("deletedMenuBtn").classList.add("active");
     renderDeletedList();
   } else if(v === "added"){
-    $("hdrHospital").textContent = "Riwayat Tambah";
+    $("hdrHospital").textContent = "Riwayat Penambahan Mesin";
     document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
     $("addedMenuBtn").classList.add("active");
     renderAddedList();
@@ -1597,6 +1769,8 @@ function showView(v){
     syncHospitalTabs();
   }
   syncFilesSubmenu();
+  syncAddedSubmenu();
+  syncDeletedSubmenu();
   saveView();
   window.scrollTo(0, 0);
 }
@@ -1664,10 +1838,10 @@ function tapTanpaSapuan(btn, onTap){
 tapTanpaSapuan($("menuBtn"), () => {
   $("sidebar").classList.contains("open") ? closeSidebar() : openSidebar();
 });
-// Tombol Back manual di header: sama persis seperti tombol Back sistem —
-// memanggil history.back() supaya seluruh logika Back yang sudah ada
+// Tombol Back mengambang di pojok kiri bawah: sama persis seperti tombol Back
+// sistem — memanggil history.back() supaya seluruh logika Back yang sudah ada
 // (tutup drawer dulu, mundur satu tampilan, toast keluar) tetap berlaku.
-tapTanpaSapuan($("backBtn"), () => { history.back(); });
+tapTanpaSapuan($("backFab"), () => { history.back(); });
 $("scrim").addEventListener("click", closeSidebar);
 document.addEventListener("keydown", (ev) => { if(ev.key === "Escape"){ closeSidebar(); closeDotsMenu(); } });
 
@@ -1773,9 +1947,35 @@ $("logoutMenuBtn").addEventListener("click", () => { closeSidebar(); doLogout();
 /* ---------- tampilan awal (beranda bergambar) ---------- */
 $("homeMenuBtn").addEventListener("click", () => { navigateTo({view:"home"}); closeSidebar(); });
 $("addMenuBtn").addEventListener("click", () => { navigateTo({view:"add"}); closeSidebar(); });
-$("deletedMenuBtn").addEventListener("click", () => { navigateTo({view:"deleted"}); closeSidebar(); });
-$("addedMenuBtn").addEventListener("click", () => { navigateTo({view:"added"}); closeSidebar(); });
+$("deletedMenuBtn").addEventListener("click", () => {
+  // Drawer SENGAJA tidak ditutup di sini — submenu ada di dalam drawer,
+  // jadi drawer harus tetap terbuka supaya 3 pilihan RS terlihat.
+  if(view === "deleted" && !deletedSubUserClosed){
+    deletedSubUserClosed = true; // submenu sedang terbuka: tutup saja, tampilan tetap
+    syncDeletedSubmenu();
+    return;
+  }
+  deletedSubUserClosed = false;
+  if(view === "deleted"){ syncDeletedSubmenu(); return; } // sudah di tampilan deleted: buka submenu saja
+  navigateTo({view:"deleted"});
+  openSidebar(); // navigasi menutup drawer; buka lagi supaya submenu 3 RS terlihat
+});
+$("addedMenuBtn").addEventListener("click", () => {
+  // Drawer SENGAJA tidak ditutup di sini — submenu ada di dalam drawer,
+  // jadi drawer harus tetap terbuka supaya 3 pilihan RS terlihat.
+  if(view === "added" && !addedSubUserClosed){
+    addedSubUserClosed = true; // submenu sedang terbuka: tutup saja, tampilan tetap
+    syncAddedSubmenu();
+    return;
+  }
+  addedSubUserClosed = false;
+  if(view === "added"){ syncAddedSubmenu(); return; } // sudah di tampilan added: buka submenu saja
+  navigateTo({view:"added"});
+  openSidebar(); // navigasi menutup drawer; buka lagi supaya submenu 3 RS terlihat
+});
 buildFilesSubmenu(); // isi submenu 3 RS sekali saat aplikasi dimuat
+buildAddedSubmenu(); // isi submenu 3 RS Riwayat Penambahan Mesin sekali saat aplikasi dimuat
+buildDeletedSubmenu(); // isi submenu 3 RS Riwayat Dihapus sekali saat aplikasi dimuat
 $("filesMenuBtn").addEventListener("click", () => {
   // Drawer SENGAJA tidak ditutup di sini — submenu ada di dalam drawer,
   // jadi drawer harus tetap terbuka supaya 3 pilihan RS terlihat.
