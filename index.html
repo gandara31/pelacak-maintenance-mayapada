@@ -181,10 +181,6 @@
   .statustoggle button.due.active .count{background:var(--red)}
   .statustoggle button.ok.active{background:#cdeed6; border-color:#146c3a; color:#146c3a}
   .statustoggle button.ok.active .count{background:var(--green)}
-  /* Chip filter rumah sakit di Riwayat Penambahan Mesin */
-  .filterchips{display:flex; flex-wrap:wrap; gap:8px; margin:0 0 12px}
-  .filterchips button{padding:9px 13px; border-radius:999px; border:1.5px solid var(--line); background:#f6f8fb; font-weight:700; font-size:13.5px; color:var(--navy); cursor:pointer}
-  .filterchips button.active{background:var(--navy); border-color:var(--navy); color:#fff}
   /* Navigasi halaman di bawah tiap kelompok tipe (10 mesin per halaman) */
   .pagenav{display:flex; align-items:center; justify-content:space-between; gap:8px; margin:2px 0 6px}
   .pagenav button{border:1.5px solid var(--navy); background:#fff; color:var(--navy); border-radius:9px; padding:8px 12px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap}
@@ -487,8 +483,7 @@
   <main id="addedMain" class="hidden">
     <section class="panel">
       <h2>Riwayat Penambahan Mesin</h2>
-      <p class="hint">Mesin baru yang ditambahkan, urut dari yang terbaru. Ketuk nama rumah sakit untuk melihat nomor seri yang ditambahkan di sana.</p>
-      <div class="filterchips" id="addedFilter"></div>
+      <p class="hint" id="addedHint">Mesin baru yang ditambahkan di Mayapada, urut dari yang terbaru.</p>
       <div id="addedList"></div>
       <div id="addedPageNav"></div>
     </section>
@@ -1120,7 +1115,7 @@ function renderDeletedList(){
 const ADDED_HISTORY_SINCE = "2026-11-23T10:54:00+07:00";
 const ADDED_HISTORY_SINCE_MS = Date.parse(ADDED_HISTORY_SINCE);
 function isNewlyAdded(m){ return !!m.created_at && Date.parse(m.created_at) >= ADDED_HISTORY_SINCE_MS; }
-let addedFilter = ""; // nama rumah sakit yang dipilih lewat chip di atas daftar (tanpa "Semua")
+let addedFilter = ""; // nama rumah sakit yang dipilih lewat submenu di menu samping (tanpa chip di dalam tampilan)
 let addedPage = 1;    // halaman aktif Riwayat Penambahan Mesin (10 mesin per halaman)
 function addedSorted(){
   return machines.slice().sort((a, b) => {
@@ -1132,23 +1127,13 @@ function addedSorted(){
 function renderAddedList(){
   const listBox = $("addedList");
   const navBox = $("addedPageNav");
-  const filterBox = $("addedFilter");
-  if(!listBox || !navBox || !filterBox) return;
-  /* Tanpa chip "Semua": hanya 3 rumah sakit. Bila belum ada pilihan yang sah,
-     pakai rumah sakit yang terakhir dipakai (atau Mayapada bila tidak ada). */
+  if(!listBox || !navBox) return;
+  /* Tanpa chip di dalam tampilan: RS dipilih lewat submenu di menu samping.
+     Bila belum ada pilihan yang sah, pakai rumah sakit yang terakhir dipakai
+     (atau Mayapada bila tidak ada). */
   if(!HOSPITALS.includes(addedFilter)) addedFilter = HOSPITALS.includes(activeHospital) ? activeHospital : H_MAYAPADA;
-  /* Chip filter rumah sakit beserta jumlah mesin BARU-nya. */
-  const chips = HOSPITALS.map(h => ({v: h, label: shortH(h)}));
-  filterBox.innerHTML = "";
-  chips.forEach(c => {
-    const n = machines.filter(m => isNewlyAdded(m) && (m.hospital || H_MAYAPADA) === c.v).length;
-    const b = document.createElement("button");
-    b.type = "button";
-    b.textContent = `${c.label} (${n})`;
-    if(addedFilter === c.v) b.classList.add("active");
-    b.addEventListener("click", () => { if(addedFilter !== c.v){ addedFilter = c.v; addedPage = 1; saveView(); renderAddedList(); } });
-    filterBox.appendChild(b);
-  });
+  const hint = $("addedHint");
+  if(hint) hint.textContent = `Mesin baru yang ditambahkan di ${shortH(addedFilter)}, urut dari yang terbaru.`;
   const list = addedSorted().filter(m => isNewlyAdded(m) && (m.hospital || H_MAYAPADA) === addedFilter);
   listBox.innerHTML = "";
   navBox.innerHTML = "";
