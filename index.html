@@ -52,6 +52,13 @@
   header.top .t b{display:block; font-size:16px; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   header.top .t span{display:block; font-size:12px; opacity:.75; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   header.top button{background:rgba(255,255,255,.14); color:#fff; border:1px solid rgba(255,255,255,.35); padding:7px 12px; border-radius:8px; font-size:13px}
+  header.top .dotsbtn{padding:6px 12px; font-size:20px; line-height:1; font-weight:800}
+  .dotsmenu{position:fixed; top:60px; right:12px; z-index:45; background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:0 12px 32px rgba(0,0,0,.28); min-width:230px; padding:6px; display:none}
+  .dotsmenu.open{display:block}
+  .dotsmenu button{display:block; width:100%; text-align:left; background:none; border:0; padding:12px 14px; font-size:15px; font-weight:600; color:var(--navy); border-radius:8px}
+  .dotsmenu button:hover{background:#eef3f8}
+  .dotsmenu button:disabled{color:#9aa7b5; font-weight:500}
+  .dotsmenu button+button{border-top:1px solid #eef1f5}
 
   /* ---------- menu samping kiri ---------- */
   #menuBtn{display:none; flex:none; font-size:19px; line-height:1; padding:7px 10px}
@@ -266,7 +273,13 @@
     <button id="menuBtn" type="button" aria-label="Buka menu">☰</button>
     <img src="icon-192.png" alt="">
     <div class="t"><b>Pelacak Maintenance</b><span id="hdrHospital">Mayapada Hospital Bogor</span></div>
+    <button id="dotsBtn" class="dotsbtn" type="button" aria-label="Menu lainnya" aria-haspopup="true" aria-expanded="false">⋮</button>
   </header>
+  <div class="dotsmenu" id="dotsMenu" role="menu">
+    <button type="button" id="installMenuItem" role="menuitem">Instal aplikasi</button>
+    <button type="button" id="shareMenuItem" role="menuitem">Bagikan tautan</button>
+    <button type="button" id="copyMenuItem" role="menuitem">Salin tautan</button>
+  </div>
   <div id="homeView" class="hidden">
     <div class="homehero">
       <button type="button" class="homecard" id="homeSws">
@@ -834,7 +847,68 @@ $("menuBtn").addEventListener("click", () => {
   $("sidebar").classList.contains("open") ? closeSidebar() : openSidebar();
 });
 $("scrim").addEventListener("click", closeSidebar);
-document.addEventListener("keydown", (ev) => { if(ev.key === "Escape") closeSidebar(); });
+document.addEventListener("keydown", (ev) => { if(ev.key === "Escape"){ closeSidebar(); closeDotsMenu(); } });
+
+/* ---------- tombol titik tiga (⋮): instal, bagikan, salin tautan ---------- */
+const APP_URL = "https://gandara31.github.io/pelacak-maintenance-mayapada/";
+let deferredPrompt = null;
+function isInstalled(){
+  return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone === true;
+}
+function updateInstallItem(){
+  const b = $("installMenuItem");
+  if(isInstalled()){ b.textContent = "Sudah terpasang"; b.disabled = true; }
+  else { b.textContent = "Instal aplikasi"; b.disabled = false; }
+}
+window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferredPrompt = e; });
+window.addEventListener("appinstalled", () => { deferredPrompt = null; updateInstallItem(); });
+function openDotsMenu(){
+  updateInstallItem();
+  $("dotsMenu").classList.add("open");
+  $("dotsBtn").setAttribute("aria-expanded", "true");
+}
+function closeDotsMenu(){
+  $("dotsMenu").classList.remove("open");
+  $("dotsBtn").setAttribute("aria-expanded", "false");
+}
+$("dotsBtn").addEventListener("click", (ev) => {
+  ev.stopPropagation();
+  $("dotsMenu").classList.contains("open") ? closeDotsMenu() : openDotsMenu();
+});
+document.addEventListener("click", (ev) => {
+  if($("dotsMenu").classList.contains("open") && !ev.target.closest("#dotsMenu")) closeDotsMenu();
+});
+async function copyAppLink(){
+  try{ await navigator.clipboard.writeText(APP_URL); }
+  catch(e){
+    const ta = document.createElement("textarea");
+    ta.value = APP_URL; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand("copy"); }catch(_){ }
+    ta.remove();
+  }
+  toast("Tautan disalin, tempel di WhatsApp");
+}
+$("installMenuItem").addEventListener("click", async () => {
+  closeDotsMenu();
+  if(isInstalled()){ toast("Aplikasi sudah terpasang"); return; }
+  if(deferredPrompt){
+    deferredPrompt.prompt();
+    const choice = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    toast(choice && choice.outcome === "accepted" ? "Aplikasi dipasang" : "Pemasangan dibatalkan");
+  } else {
+    toast("Buka tautan ini di Chrome, ketuk titik tiga Chrome, pilih 'Instal dan buat pintasan'");
+  }
+});
+$("shareMenuItem").addEventListener("click", async () => {
+  closeDotsMenu();
+  if(navigator.share){
+    try{ await navigator.share({title: "Pelacak Maintenance Mayapada", url: APP_URL}); }
+    catch(e){ if(e && e.name !== "AbortError") await copyAppLink(); }
+  } else { await copyAppLink(); }
+});
+$("copyMenuItem").addEventListener("click", async () => { closeDotsMenu(); await copyAppLink(); });
 document.querySelectorAll("#sidebar .menuitem[data-h]").forEach(b => b.addEventListener("click", () => {
   goDash({hospital: b.dataset.h});
   closeSidebar();
