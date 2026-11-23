@@ -62,6 +62,7 @@
 
   /* ---------- menu samping kiri ---------- */
   #menuBtn{display:none; flex:none; font-size:19px; line-height:1; padding:7px 10px}
+  #backBtn{display:block; flex:none; font-size:20px; line-height:1; padding:4px 8px; font-weight:800}
   .sidebar{position:fixed; top:0; left:0; bottom:0; width:252px; background:var(--navy); color:#fff; z-index:40; transform:translateX(-102%); transition:transform .25s ease; display:flex; flex-direction:column; overflow-y:auto; box-shadow:2px 0 18px rgba(6,25,48,.25)}
   .sidebar.open{transform:translateX(0)}
   .sidebar.noanim{transition:none !important}
@@ -84,7 +85,10 @@
     .scrim{display:none !important}
   }
   @media (max-width:860px){
-    #menuBtn{display:block}
+    #menuBtn{display:block; padding:7px 8px}
+    header.top{gap:6px; padding:12px 8px}
+    header.top img{width:32px; height:32px}
+    header.top .dotsbtn{padding:6px 10px}
   }
   main{max-width:640px; margin:0 auto; padding:16px 10px 60px}
   .panel{background:var(--card); border-radius:14px; padding:16px; box-shadow:0 2px 10px rgba(11,37,69,.07); margin-bottom:14px}
@@ -327,6 +331,7 @@
   </nav>
   <div class="scrim" id="scrim"></div>
   <header class="top">
+    <button id="backBtn" type="button" aria-label="Kembali">‹</button>
     <button id="menuBtn" type="button" aria-label="Buka menu">☰</button>
     <img src="icon-192.png" alt="">
     <div class="t"><b>Pelacak Maintenance</b><span id="hdrHospital">Mayapada Hospital Bogor</span></div>
@@ -1568,30 +1573,41 @@ function closeSidebarInstant(){
   void sb.offsetWidth; // paksa reflow: perubahan langsung diterapkan tanpa animasi
   requestAnimationFrame(() => sb.classList.remove("noanim"));
 }
-// Abaikan click akibat sapuan pada tombol ☰. Gestur Back Android adalah
-// sapuan dari tepi kiri; bila sapuan itu pendek (10-15px) dan mulai di atas
-// tombol ☰, browser menafsirkannya juga sebagai ketukan sehingga drawer
-// ikut terbuka bersamaan dengan pindahnya tampilan. Karena itu, bila
-// penunjuk sempat bergerak lebih dari 8px sejak pointerdown, click
-// berikutnya diabaikan (itu sapuan, bukan ketukan). Ketukan biasa (penunjuk
-// hampir tidak bergerak), klik mouse tanpa seret, dan tombol keyboard tetap
-// membuka/menutup drawer. Dipakai pointer event supaya gerakannya terpantau
-// — touchmove tidak selalu sampai ke halaman saat sapuan ditangani browser.
-let menuBtnSwipe = false, menuBtnStart = null;
-$("menuBtn").addEventListener("pointerdown", (ev) => {
-  menuBtnStart = { x: ev.clientX, y: ev.clientY };
-  menuBtnSwipe = false;
-});
-$("menuBtn").addEventListener("pointermove", (ev) => {
-  if(!menuBtnStart) return;
-  if(Math.hypot(ev.clientX - menuBtnStart.x, ev.clientY - menuBtnStart.y) > 8) menuBtnSwipe = true;
-});
-$("menuBtn").addEventListener("pointerup", () => { menuBtnStart = null; });
-$("menuBtn").addEventListener("pointercancel", () => { menuBtnStart = null; menuBtnSwipe = false; });
-$("menuBtn").addEventListener("click", () => {
-  if(menuBtnSwipe){ menuBtnSwipe = false; return; } // sapuan, bukan ketukan
+// Abaikan click akibat sapuan pada tombol header (☰ dan Back). Gestur Back
+// Android adalah sapuan dari tepi kiri; bila sapuan itu pendek (10-15px)
+// dan mulai di atas sebuah tombol header, browser menafsirkannya juga
+// sebagai ketukan sehingga tombol itu ikut terpicu bersamaan dengan
+// pindahnya tampilan (drawer ikut terbuka, atau Back manual ikut terpanggil
+// sehingga tampilan melompati satu langkah). Karena itu, bila penunjuk
+// sempat bergerak lebih dari 8px sejak pointerdown, click berikutnya
+// diabaikan (itu sapuan, bukan ketukan). Ketukan biasa (penunjuk hampir
+// tidak bergerak), klik mouse tanpa seret, dan tombol keyboard tetap jalan.
+// Dipakai pointer event supaya gerakannya terpantau — touchmove tidak
+// selalu sampai ke halaman saat sapuan ditangani browser.
+function tapTanpaSapuan(btn, onTap){
+  let start = null, swipe = false;
+  btn.addEventListener("pointerdown", (ev) => {
+    start = { x: ev.clientX, y: ev.clientY };
+    swipe = false;
+  });
+  btn.addEventListener("pointermove", (ev) => {
+    if(!start) return;
+    if(Math.hypot(ev.clientX - start.x, ev.clientY - start.y) > 8) swipe = true;
+  });
+  btn.addEventListener("pointerup", () => { start = null; });
+  btn.addEventListener("pointercancel", () => { start = null; swipe = false; });
+  btn.addEventListener("click", () => {
+    if(swipe){ swipe = false; return; } // sapuan, bukan ketukan
+    onTap();
+  });
+}
+tapTanpaSapuan($("menuBtn"), () => {
   $("sidebar").classList.contains("open") ? closeSidebar() : openSidebar();
 });
+// Tombol Back manual di header: sama persis seperti tombol Back sistem —
+// memanggil history.back() supaya seluruh logika Back yang sudah ada
+// (tutup drawer dulu, mundur satu tampilan, toast keluar) tetap berlaku.
+tapTanpaSapuan($("backBtn"), () => { history.back(); });
 $("scrim").addEventListener("click", closeSidebar);
 document.addEventListener("keydown", (ev) => { if(ev.key === "Escape"){ closeSidebar(); closeDotsMenu(); } });
 
