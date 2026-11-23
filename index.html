@@ -209,6 +209,12 @@
   .homecard{background:var(--card); border:1.5px solid var(--line); border-radius:14px; padding:10px; box-shadow:0 2px 10px rgba(11,37,69,.07); cursor:pointer; text-align:center}
   .homecard img{width:100%; height:190px; object-fit:contain; background:#fff; border-radius:9px; display:block}
   .homecard:active{border-color:var(--navy2)}
+  /* Seret foto Beranda untuk menukar posisi (tekan-tahan lalu seret) */
+  .homecard{touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; cursor:grab}
+  .homecard img{pointer-events:none; -webkit-user-drag:none}
+  .homecard.holding{transform:scale(1.03); border-color:var(--navy2); box-shadow:0 8px 22px rgba(11,37,69,.22)}
+  .homecard.dragging{position:relative; z-index:5; border-color:var(--navy); box-shadow:0 16px 34px rgba(11,37,69,.32); cursor:grabbing; transition:none}
+  .homecard.drop-hint{border-color:var(--navy); box-shadow:0 0 0 3px var(--navy2); background:#eef4fb}
 </style>
 </head>
 <body>
@@ -283,10 +289,10 @@
   <div id="homeView" class="hidden">
     <div class="homehero">
       <button type="button" class="homecard" id="homeSws">
-        <img src="mesin-sws-6000a.jpg" alt="Mesin hemodialisa SWS 6000A">
+        <img src="mesin-sws-6000a.jpg" alt="Mesin hemodialisa SWS 6000A" draggable="false">
       </button>
       <button type="button" class="homecard" id="homeJoy">
-        <img src="mesin-joyheal.jpg" alt="Mesin hemodialisa Joyheal">
+        <img src="mesin-joyheal.jpg" alt="Mesin hemodialisa Joyheal" draggable="false">
       </button>
     </div>
   </div>
@@ -808,6 +814,7 @@ function showView(v){
   $("dashMain").classList.toggle("hidden", v !== "dash");
   $("addMain").classList.toggle("hidden", v !== "add");
   if(v === "home"){
+    applyHomeOrder();
     $("hdrHospital").textContent = "Beranda";
     document.querySelectorAll("#sidebar .menuitem").forEach(b => b.classList.remove("active"));
     $("homeMenuBtn").classList.add("active");
@@ -918,8 +925,129 @@ $("logoutMenuBtn").addEventListener("click", () => { closeSidebar(); doLogout();
 /* ---------- tampilan awal (beranda bergambar) ---------- */
 $("homeMenuBtn").addEventListener("click", () => { showView("home"); renderAll(); closeSidebar(); });
 $("addMenuBtn").addEventListener("click", () => { showView("add"); renderAll(); closeSidebar(); });
-$("homeSws").addEventListener("click", () => goDash({model: "SWS-6000A"}));
-$("homeJoy").addEventListener("click", () => goDash({model: "JOYHEAL"}));
+/* ---------- Beranda: seret foto untuk menukar posisi (tekan-tahan lalu seret) ---------- */
+const HOME_CARDS = {sws: $("homeSws"), joy: $("homeJoy")};
+const HOME_ORDER_KEY = "pelacak_home_order";
+function loadHomeOrder(){
+  try{
+    const v = JSON.parse(localStorage.getItem(HOME_ORDER_KEY) || "null");
+    if(Array.isArray(v) && v.length === 2 && v.includes("sws") && v.includes("joy")) return v.slice();
+  }catch(e){}
+  return ["sws", "joy"];
+}
+let homeOrder = loadHomeOrder();
+function saveHomeOrder(){ try{ localStorage.setItem(HOME_ORDER_KEY, JSON.stringify(homeOrder)); }catch(e){} }
+function applyHomeOrder(){
+  const hero = document.querySelector(".homehero");
+  if(!hero) return;
+  homeOrder.forEach(k => hero.appendChild(HOME_CARDS[k]));
+}
+function homeOther(card){ return card === HOME_CARDS.sws ? HOME_CARDS.joy : HOME_CARDS.sws; }
+let homeSuppressClick = false;
+let homeDrag = null; // {card, pointerId, startX, startY, active, moved, holdTimer, armTimer}
+const DRAG_HOLD_MS = 300;  // tekan-tahan sebelum seret aktif
+const DRAG_MOVE_PX = 14;   // ambang gerak untuk mulai seret lewat geseran (terutama mouse)
+function homeDragCleanup(){
+  if(!homeDrag) return;
+  clearTimeout(homeDrag.holdTimer); clearTimeout(homeDrag.armTimer);
+  homeDrag.card.classList.remove("holding", "dragging");
+  homeDrag.card.style.transform = "";
+  homeDrag.card.style.transition = "";
+  homeDrag.card.style.zIndex = "";
+  homeOther(homeDrag.card).classList.remove("drop-hint");
+  homeDrag = null;
+}
+function homePointOver(card, x, y){
+  const r = card.getBoundingClientRect();
+  return x >= r.left - 8 && x <= r.right + 8 && y >= r.top - 8 && y <= r.bottom + 8;
+}
+function homeStartDrag(){
+  if(!homeDrag) return;
+  homeDrag.active = true;
+  homeDrag.card.classList.remove("holding");
+  homeDrag.card.classList.add("dragging");
+  homeSuppressClick = true;
+  setTimeout(() => { homeSuppressClick = false; }, 400);
+}
+function homeSwapCards(preRects){
+  const hero = document.querySelector(".homehero");
+  if(!hero) return;
+  const cards = [HOME_CARDS.sws, HOME_CARDS.joy];
+  const oldRects = preRects || new Map(cards.map(c => [c, c.getBoundingClientRect()]));
+  homeOrder = [homeOrder[1], homeOrder[0]];
+  saveHomeOrder();
+  homeOrder.forEach(k => hero.appendChild(HOME_CARDS[k]));
+  /* Animasi FLIP: kartu meluncur halus dari posisi lama ke posisi baru. */
+  cards.forEach(c => {
+    const o = oldRects.get(c), n = c.getBoundingClientRect();
+    const dx = o.left - n.left, dy = o.top - n.top;
+    if(dx || dy){
+      c.style.transition = "none";
+      c.style.transform = "translate(" + dx + "px," + dy + "px)";
+      requestAnimationFrame(() => {
+        c.style.transition = "transform .25s ease";
+        c.style.transform = "";
+        setTimeout(() => { c.style.transition = ""; }, 280);
+      });
+    }
+  });
+}
+function homeCardPointerDown(ev){
+  const card = ev.currentTarget;
+  if(homeDrag) return;
+  if(ev.button !== undefined && ev.button !== 0) return;
+  homeDrag = {card, pointerId: ev.pointerId, startX: ev.clientX, startY: ev.clientY, active: false, moved: false};
+  try{ card.setPointerCapture(ev.pointerId); }catch(e){}
+  homeDrag.armTimer = setTimeout(() => { if(homeDrag) card.classList.add("holding"); }, 140);
+  homeDrag.holdTimer = setTimeout(() => { if(homeDrag && !homeDrag.moved) homeStartDrag(); }, DRAG_HOLD_MS);
+}
+function homeCardPointerMove(ev){
+  if(!homeDrag || ev.pointerId !== homeDrag.pointerId) return;
+  const dx = ev.clientX - homeDrag.startX, dy = ev.clientY - homeDrag.startY;
+  const dist = Math.hypot(dx, dy);
+  if(!homeDrag.active){
+    if(dist > DRAG_MOVE_PX){
+      /* Geseran yang jelas (terutama mouse): langsung mulai seret. */
+      clearTimeout(homeDrag.holdTimer); clearTimeout(homeDrag.armTimer);
+      homeDrag.moved = true;
+      homeDrag.startX = ev.clientX; homeDrag.startY = ev.clientY;
+      homeStartDrag();
+      return;
+    }
+    if(dist > 6){ homeDrag.moved = true; clearTimeout(homeDrag.armTimer); }
+    return;
+  }
+  ev.preventDefault();
+  homeDrag.card.style.transform = "translate(" + dx + "px," + dy + "px) scale(1.06)";
+  homeOther(homeDrag.card).classList.toggle("drop-hint", homePointOver(homeOther(homeDrag.card), ev.clientX, ev.clientY));
+}
+function homeCardPointerUp(ev){
+  if(!homeDrag || ev.pointerId !== homeDrag.pointerId) return;
+  const wasActive = homeDrag.active;
+  const card = homeDrag.card;
+  const other = homeOther(card);
+  const drop = wasActive && homePointOver(other, ev.clientX, ev.clientY);
+  const preRects = new Map([HOME_CARDS.sws, HOME_CARDS.joy].map(c => [c, c.getBoundingClientRect()]));
+  homeDragCleanup();
+  if(drop) homeSwapCards(preRects);
+  if(wasActive){
+    homeSuppressClick = true;
+    setTimeout(() => { homeSuppressClick = false; }, 200);
+  }
+}
+function homeCardPointerCancel(ev){
+  if(!homeDrag || ev.pointerId !== homeDrag.pointerId) return;
+  homeDragCleanup();
+}
+[HOME_CARDS.sws, HOME_CARDS.joy].forEach(card => {
+  card.addEventListener("pointerdown", homeCardPointerDown);
+  card.addEventListener("pointermove", homeCardPointerMove);
+  card.addEventListener("pointerup", homeCardPointerUp);
+  card.addEventListener("pointercancel", homeCardPointerCancel);
+  card.addEventListener("contextmenu", (ev) => ev.preventDefault());
+});
+$("homeSws").addEventListener("click", () => { if(homeSuppressClick){ homeSuppressClick = false; return; } goDash({model: "SWS-6000A"}); });
+$("homeJoy").addEventListener("click", () => { if(homeSuppressClick){ homeSuppressClick = false; return; } goDash({model: "JOYHEAL"}); });
 document.querySelectorAll("#techChips .techchip").forEach(b => b.addEventListener("click", () => {
   selectedTech = b.dataset.tech;
   document.querySelectorAll("#techChips .techchip").forEach(x => x.classList.toggle("active", x === b));
