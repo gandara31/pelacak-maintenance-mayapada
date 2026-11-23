@@ -444,7 +444,7 @@
   <main id="addedMain" class="hidden">
     <section class="panel">
       <h2>Riwayat Tambah</h2>
-      <p class="hint">Mesin yang ditambahkan, urut dari yang terbaru. Ketuk nama rumah sakit untuk melihat nomor seri yang ditambahkan di sana.</p>
+      <p class="hint">Mesin baru yang ditambahkan, urut dari yang terbaru. Ketuk nama rumah sakit untuk melihat nomor seri yang ditambahkan di sana.</p>
       <div class="filterchips" id="addedFilter"></div>
       <div id="addedList"></div>
       <div id="addedPageNav"></div>
@@ -941,7 +941,12 @@ function renderDeletedList(){
   });
 }
 /* ---------- riwayat mesin yang ditambahkan (per rumah sakit, urut terbaru dulu) ---------- */
-let addedFilter = ""; // "" = Semua | nama rumah sakit — dipilih lewat chip di atas daftar
+/* Batas awal riwayat: fitur ini live 23 Nov 2026 pukul 10.54 WIB — hanya mesin yang
+   ditambahkan sesudah saat itu yang tampil; 88 mesin lama tidak ikut. */
+const ADDED_HISTORY_SINCE = "2026-11-23T10:54:00+07:00";
+const ADDED_HISTORY_SINCE_MS = Date.parse(ADDED_HISTORY_SINCE);
+function isNewlyAdded(m){ return !!m.created_at && Date.parse(m.created_at) >= ADDED_HISTORY_SINCE_MS; }
+let addedFilter = ""; // nama rumah sakit yang dipilih lewat chip di atas daftar (tanpa "Semua")
 let addedPage = 1;    // halaman aktif Riwayat Tambah (10 mesin per halaman)
 function addedSorted(){
   return machines.slice().sort((a, b) => {
@@ -955,11 +960,14 @@ function renderAddedList(){
   const navBox = $("addedPageNav");
   const filterBox = $("addedFilter");
   if(!listBox || !navBox || !filterBox) return;
-  /* Chip filter rumah sakit beserta jumlah mesinnya. */
-  const chips = [{v: "", label: "Semua"}].concat(HOSPITALS.map(h => ({v: h, label: shortH(h)})));
+  /* Tanpa chip "Semua": hanya 3 rumah sakit. Bila belum ada pilihan yang sah,
+     pakai rumah sakit yang terakhir dipakai (atau Mayapada bila tidak ada). */
+  if(!HOSPITALS.includes(addedFilter)) addedFilter = HOSPITALS.includes(activeHospital) ? activeHospital : H_MAYAPADA;
+  /* Chip filter rumah sakit beserta jumlah mesin BARU-nya. */
+  const chips = HOSPITALS.map(h => ({v: h, label: shortH(h)}));
   filterBox.innerHTML = "";
   chips.forEach(c => {
-    const n = c.v ? machines.filter(m => (m.hospital || H_MAYAPADA) === c.v).length : machines.length;
+    const n = machines.filter(m => isNewlyAdded(m) && (m.hospital || H_MAYAPADA) === c.v).length;
     const b = document.createElement("button");
     b.type = "button";
     b.textContent = `${c.label} (${n})`;
@@ -967,11 +975,11 @@ function renderAddedList(){
     b.addEventListener("click", () => { if(addedFilter !== c.v){ addedFilter = c.v; addedPage = 1; renderAddedList(); } });
     filterBox.appendChild(b);
   });
-  const list = addedSorted().filter(m => !addedFilter || (m.hospital || H_MAYAPADA) === addedFilter);
+  const list = addedSorted().filter(m => isNewlyAdded(m) && (m.hospital || H_MAYAPADA) === addedFilter);
   listBox.innerHTML = "";
   navBox.innerHTML = "";
   if(!list.length){
-    listBox.innerHTML = `<div class="panel empty">Belum ada mesin yang ditambahkan.</div>`;
+    listBox.innerHTML = `<div class="panel empty">Belum ada mesin baru yang ditambahkan di ${esc(shortH(addedFilter))}.</div>`;
     return;
   }
   const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
