@@ -338,6 +338,7 @@
       <div id="deleteBox" class="hidden" style="margin-top:10px">
         <label for="deleteSnInput">Ketik nomor seri mesin yang mau dihapus</label>
         <input id="deleteSnInput" type="text" autocomplete="off" placeholder="Contoh: JH10239101010A" style="text-transform:uppercase">
+        <div class="suggest" id="deleteSuggestBox"></div>
         <button class="btndel" id="deleteConfirmBtn" type="button" style="width:100%; margin-top:10px">Hapus Mesin Ini</button>
       </div>
     </section>
@@ -587,6 +588,23 @@ function renderSuggestionsListOnly(){
       box.appendChild(b);
     });
 }
+/* ---------- saran nomor seri di kolom hapus (pola sama seperti form Catat) ---------- */
+function clearDeleteSuggestions(){ $("deleteSuggestBox").innerHTML = ""; }
+function renderDeleteSuggestions(){
+  const q = $("deleteSnInput").value.trim().toUpperCase();
+  const box = $("deleteSuggestBox"); box.innerHTML = "";
+  if(!q) return;
+  machines.filter(m => inHospital(m) && m.serial.toUpperCase().includes(q)).slice(0, 6)
+    .forEach(m => {
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = m.serial;
+      b.addEventListener("click", () => {
+        $("deleteSnInput").value = m.serial;
+        clearDeleteSuggestions();
+      });
+      box.appendChild(b);
+    });
+}
 function renderRecog(){
   const box = $("recogBox");
   const q = $("snInput").value.trim().toUpperCase();
@@ -828,6 +846,7 @@ function showView(v){
   window.scrollTo(0, 0);
 }
 function goDash(opts = {}){
+  clearDeleteSuggestions();
   if(opts.hospital){ activeHospital = opts.hospital; localStorage.setItem("pelacak_hospital", activeHospital); }
   modelFilterVal = opts.model || "";
   showView("dash");
@@ -1096,16 +1115,18 @@ $("recordBtn").addEventListener("click", async () => {
 $("deleteBtn").addEventListener("click", () => {
   const box = $("deleteBox");
   box.classList.toggle("hidden");
-  if(!box.classList.contains("hidden")) $("deleteSnInput").focus();
+  if(box.classList.contains("hidden")){ $("deleteSnInput").value = ""; clearDeleteSuggestions(); }
+  else $("deleteSnInput").focus();
 });
+$("deleteSnInput").addEventListener("input", renderDeleteSuggestions);
 $("deleteConfirmBtn").addEventListener("click", async () => {
   const typed = $("deleteSnInput").value.trim().toUpperCase();
   if(!typed){ toast("Ketik dulu nomor seri mesin yang mau dihapus"); return; }
   const m = machines.find(x => x.serial.toUpperCase() === typed && (x.hospital || H_MAYAPADA) === activeHospital);
   if(!m){ toast(`Nomor seri tidak ditemukan di ${shortH(activeHospital)} ini`); return; }
   const n = logsOf(m.id).length;
-  const pesan = `Hapus mesin ${m.serial} (${m.hospital || H_MAYAPADA})?`
-    + (n ? `\n\n${n} catatan riwayatnya ikut terhapus permanen.` : "\n\nMesin ini belum punya catatan riwayat.")
+  const pesan = `Hapus mesin ${m.serial}?\n\nModel: ${m.model}${m.year ? " · Tahun " + m.year : ""}\nRumah sakit: ${m.hospital || H_MAYAPADA}`
+    + (n ? `\n\n${n} catatan riwayat mesin ini ikut terhapus permanen.` : "\n\nMesin ini belum punya catatan riwayat.")
     + "\n\nTindakan ini tidak bisa dibatalkan.";
   if(!confirm(pesan)) return;
   const btn = $("deleteConfirmBtn"); btn.disabled = true;
@@ -1115,6 +1136,7 @@ $("deleteConfirmBtn").addEventListener("click", async () => {
     logs = logs.filter(l => l.machine_id !== m.id);
     if(selectedMachine && selectedMachine.id === m.id){ selectedMachine = null; $("snInput").value = ""; }
     $("deleteSnInput").value = "";
+    clearDeleteSuggestions();
     $("deleteBox").classList.add("hidden");
     renderAll(); toast("Mesin " + m.serial + " dihapus");
   }catch(e){ toast("Gagal menghapus: " + e.message); }
