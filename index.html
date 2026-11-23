@@ -64,6 +64,7 @@
   #menuBtn{display:none; flex:none; font-size:19px; line-height:1; padding:7px 10px}
   .sidebar{position:fixed; top:0; left:0; bottom:0; width:252px; background:var(--navy); color:#fff; z-index:40; transform:translateX(-102%); transition:transform .25s ease; display:flex; flex-direction:column; overflow-y:auto; box-shadow:2px 0 18px rgba(6,25,48,.25)}
   .sidebar.open{transform:translateX(0)}
+  .sidebar.noanim{transition:none !important}
   .sidebar .brand{display:flex; align-items:center; gap:10px; padding:16px 16px 14px; border-bottom:1px solid rgba(255,255,255,.16)}
   .sidebar .brand img{width:38px; height:38px; border-radius:9px}
   .sidebar .brand b{display:block; font-size:15px; line-height:1.2}
@@ -555,7 +556,7 @@ function initHistory(){
     history.pushState(Object.assign({}, st, {sid: NAV_SID}), "");
   }catch(e){}
 }
-function applyState(s){
+function applyState(s, instantClose){
   exitArmed = false; exiting = false; clearTimeout(exitTimer);
   if(!s || !VIEW_NAMES.includes(s.view)) s = {view:"home"};
   if(HOSPITALS.includes(s.hospital)){ activeHospital = s.hospital; try{ localStorage.setItem("pelacak_hospital", activeHospital); }catch(e){} }
@@ -565,14 +566,17 @@ function applyState(s){
     filesHospital = s.filesHospital || "";
     filesOpen = new Set();
   }
-  closeSidebar(); // ganti tampilan: drawer tidak boleh tertinggal terbuka menutupi tampilan baru
+  // Ganti tampilan: drawer tidak boleh tertinggal terbuka menutupi tampilan baru.
+  // Saat pergantian dipicu tombol Back, drawer ditutup seketika (tanpa animasi
+  // geser) supaya menu tidak terlihat bergeser saat Back ditekan.
+  if(instantClose) closeSidebarInstant(); else closeSidebar();
   showView(s.view);
   if(s.view === "deleted") refreshDeleted();
   else if(s.view === "added") refreshAdded();
   else if(s.view === "files") refreshFiles();
   else renderAll();
 }
-function navigateTo(state){
+function navigateTo(state, instantClose){
   exitArmed = false; exiting = false; clearTimeout(exitTimer);
   const full = {
     view: state.view,
@@ -583,7 +587,7 @@ function navigateTo(state){
     sid: NAV_SID
   };
   try{ history.pushState(full, ""); }catch(e){}
-  applyState(full);
+  applyState(full, instantClose);
 }
 window.addEventListener("popstate", (ev) => {
   if(!session) return; // sudah logout: biarkan browser yang mengatur
@@ -596,10 +600,12 @@ window.addEventListener("popstate", (ev) => {
     return;
   }
   // Drawer sedang terbuka: Back menutup drawer dulu (satu langkah),
-  // tampilan tidak pindah. Riwayat dikembalikan seperti semula supaya
-  // tampilan dan riwayat tetap selaras (Back sudah menggeser satu entri).
+  // tampilan tidak pindah. Ditutup SEKETIKA tanpa animasi geser, supaya
+  // menu tidak terlihat bergeser saat Back ditekan. Riwayat dikembalikan
+  // seperti semula supaya tampilan dan riwayat tetap selaras (Back sudah
+  // menggeser satu entri).
   if($("sidebar").classList.contains("open")){
-    closeSidebar();
+    closeSidebarInstant();
     try{ history.pushState(currentNavState(), ""); }catch(e){}
     return;
   }
@@ -611,16 +617,16 @@ window.addEventListener("popstate", (ev) => {
   }
   // Tiba di entri dasar (Beranda paling awal): tampilkan Beranda, tahan dulu, tampilkan pesan.
   if(s && s.base){
-    applyState(s);
+    applyState(s, true);
     armExit();
     return;
   }
   if(s && s.view){
-    applyState(s);
+    applyState(s, true);
     return;
   }
   // Tiba di entri awal yang belum punya state: kembali ke Beranda dulu.
-  if(view !== "home"){ navigateTo({view:"home"}); return; }
+  if(view !== "home"){ navigateTo({view:"home"}, true); return; }
   armExit();
 });
 function shortH(h){ return h === H_MAYAPADA ? "Mayapada" : h; }
@@ -1551,6 +1557,17 @@ $("celebrate").addEventListener("click", () => $("celebrate").classList.remove("
 $("snInput").addEventListener("input", renderSuggestions);
 function openSidebar(){ $("sidebar").classList.add("open"); $("scrim").classList.add("show"); }
 function closeSidebar(){ $("sidebar").classList.remove("open"); $("scrim").classList.remove("show"); }
+// Tutup drawer seketika tanpa animasi geser — dipakai saat tombol Back ditekan,
+// supaya menu tidak terlihat bergeser. Animasi dibuka lagi di frame berikutnya
+// agar buka/tutup drawer lewat hamburger tetap beranimasi seperti biasa.
+function closeSidebarInstant(){
+  const sb = $("sidebar");
+  sb.classList.add("noanim");
+  sb.classList.remove("open");
+  $("scrim").classList.remove("show");
+  void sb.offsetWidth; // paksa reflow: perubahan langsung diterapkan tanpa animasi
+  requestAnimationFrame(() => sb.classList.remove("noanim"));
+}
 $("menuBtn").addEventListener("click", () => {
   $("sidebar").classList.contains("open") ? closeSidebar() : openSidebar();
 });
